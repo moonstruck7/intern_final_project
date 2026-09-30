@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 
+import 'api/api_client.dart';
+import 'auth/auth_controller.dart';
+import 'auth/auth_repository.dart';
+import 'auth/session_store.dart';
+import 'screens/login_screen.dart';
 import 'screens/service_catalog_screen.dart';
 import 'screens/my_appointments_screen.dart';
 import 'theme/salon_theme.dart';
@@ -16,12 +22,35 @@ class LuxeSalonApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Luxe Salon',
-      debugShowCheckedModeBanner: false,
-      theme: SalonTheme.light(),
-      home: const SalonHomeShell(),
+    return ChangeNotifierProvider(
+      create: (_) => AuthController(
+        AuthRepository(
+          apiClient: ApiClient(),
+          sessionStore: SecureSessionStore(),
+        ),
+      )..restore(),
+      child: MaterialApp(
+        title: 'Luxe Salon',
+        debugShowCheckedModeBanner: false,
+        theme: SalonTheme.light(),
+        home: const _AuthGate(),
+      ),
     );
+  }
+}
+
+class _AuthGate extends StatelessWidget {
+  const _AuthGate();
+
+  @override
+  Widget build(BuildContext context) {
+    return switch (context.watch<AuthController>().state) {
+      AuthState.loading => const Scaffold(
+          body: Center(child: CircularProgressIndicator()),
+        ),
+      AuthState.authenticated => const SalonHomeShell(),
+      AuthState.unauthenticated || AuthState.error => const LoginScreen(),
+    };
   }
 }
 
@@ -283,6 +312,7 @@ class _ProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final customer = context.watch<AuthController>().customer;
     return Scaffold(
       body: CustomScrollView(
         slivers: [
@@ -300,7 +330,10 @@ class _ProfileScreen extends StatelessWidget {
               const SizedBox(width: 8),
             ],
             flexibleSpace: FlexibleSpaceBar(
-              background: _ProfileHeader(),
+              background: _ProfileHeader(
+                displayName: customer?.displayName ?? 'Customer',
+                email: customer?.email ?? '',
+              ),
             ),
           ),
 
@@ -385,7 +418,7 @@ class _ProfileScreen extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(20, 0, 20, 36),
                   child: OutlinedButton.icon(
-                    onPressed: () {},
+                    onPressed: () => context.read<AuthController>().logout(),
                     icon: const Icon(Icons.logout_rounded, size: 18),
                     label: const Text('Sign out'),
                     style: OutlinedButton.styleFrom(
@@ -409,6 +442,11 @@ class _ProfileScreen extends StatelessWidget {
 }
 
 class _ProfileHeader extends StatelessWidget {
+  const _ProfileHeader({required this.displayName, required this.email});
+
+  final String displayName;
+  final String email;
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -482,7 +520,7 @@ class _ProfileHeader extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
-                        'Shreya Kadam',
+                        displayName,
                         style: GoogleFonts.playfairDisplay(
                           fontSize: 22,
                           fontWeight: FontWeight.w700,
@@ -491,7 +529,7 @@ class _ProfileHeader extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'shreya@example.com',
+                        email,
                         style: Theme.of(context)
                             .textTheme
                             .bodySmall
