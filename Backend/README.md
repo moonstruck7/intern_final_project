@@ -163,3 +163,28 @@ Implementation decision — billing uses integer minor units; service prices are
 Implementation decision — customer accounts are provisioned by an authorized operations user rather than public self-registration: `POST /api/v1/customer/:id/account` requires `customers.manage`, verifies an active existing Customer, bcrypt-hashes the submitted password, assigns only the `customer` role, and sets the one-to-one `User.customerId` link. Password hashes are never returned. Customer users cannot choose or alter this ownership link.
 
 Customer booking uses `POST /api/v1/customer/me/appointments`. Its body contains only `serviceId`, `staffId`, `date`, and `startTime`; the Customer is derived from the authenticated `User.customerId`. It creates the same canonical Appointment record as the administrative API and reuses the shared appointment validation service for active references, duration, availability, and conflicts. Customer-scoped profile, appointment, notification, and invoice routes likewise derive ownership server-side.
+
+### Customer-safe booking discovery
+
+Implementation decision — the documented customer-booking workflow requires a
+customer to select staff and date-specific availability, but does not prescribe
+endpoint names or discovery response fields. These read-only contracts are
+therefore implementation-level API contracts; they do not grant a customer any
+staff-management permission or change the canonical scheduling rules.
+
+- `GET /api/v1/customer/staff` requires a linked authenticated customer and
+  returns active selectable staff only as `{ data: [{ _id, displayName,
+  designation }] }`, ordered by display name.
+- `GET /api/v1/customer/staff/:staffId/availability?date=YYYY-MM-DD` requires
+  a linked authenticated customer, a canonical active staff ID, and a valid
+  date. The date is required because the existing Availability model is
+  date-specific. It returns `{ data: [{ _id, staffId, date, startTime,
+  endTime }] }` for active availability only.
+
+The customer discovery responses intentionally exclude staff email, phone,
+attendance, leave, HR data, administrative metadata, and any customer data.
+The existing administrative `/staff` and `/staff/availability` routes remain
+protected by `staff.manage`; customers receive no new administrative permission.
+Discovery supports UI selection only. `POST /api/v1/customer/me/appointments`
+remains the final authority and continues to derive ownership server-side and
+validate active service/staff, availability, service duration, and conflicts.

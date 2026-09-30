@@ -12,6 +12,7 @@ import { billingRouter } from '../billing/routes.js'
 import { inventoryRouter } from '../inventory/routes.js'
 import { insightsRouter } from '../insights/routes.js'
 import { customerSessionRouter } from '../routes/customerSession.js'
+import { customerDiscoveryRouter } from '../routes/customerDiscovery.js'
 import { Service } from '../domains/models.js'
 
 export function createApp() {
@@ -35,6 +36,7 @@ export function createApp() {
   app.use(`${env.apiPrefix}/inventory`, inventoryRouter)
   app.use(env.apiPrefix, insightsRouter)
   app.use(`${env.apiPrefix}/customer`, customerSessionRouter)
+  app.use(`${env.apiPrefix}/customer`, customerDiscoveryRouter)
   app.get(`${env.apiPrefix}/catalog/services`, async (_request, response, next) => {
     try { response.json({ data: await Service.find({ status: 'active' }).sort({ name: 1 }).limit(100) }) } catch (error) { next(error) }
   })
