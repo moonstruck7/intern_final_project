@@ -151,3 +151,9 @@ time ranges are allowed, but overlapping ranges for one staff member are not.
 Customer overlap policy, cancellation policy, salon timezone, and atomic
 concurrent-booking guarantees remain CONTRACT DECISIONS REQUIRED. Current
 application-level conflict checks are not a distributed-locking guarantee.
+
+## Billing and inventory
+
+Implementation decision — billing uses integer minor units; service prices are converted server-side and client totals are ignored. `POST /api/v1/billing/invoices` accepts an appointment or customer/service source, and payment records are internal only (`cash`, `card`, `upi`, `other`). Refunds, tax, discount, currency, and supplier/valuation rules are CONTRACT DECISIONS REQUIRED.
+
+`POST/GET /api/v1/inventory/products`, `POST /api/v1/inventory/products/:id/stock`, and `GET /api/v1/inventory/products/:id/transactions` are protected inventory APIs. Stock changes create audit records and cannot make stock negative. No service-to-product consumption rule is implemented.

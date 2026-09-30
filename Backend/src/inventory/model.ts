@@ -1,0 +1,3 @@
+import { Schema, model } from 'mongoose'
+export const Product=model('Product',new Schema({name:{type:String,required:true},sku:{type:String,required:true,unique:true},sellingPriceMinor:{type:Number,min:0,required:true},currentStock:{type:Number,default:0,min:0},lowStockThreshold:{type:Number,min:0},status:{type:String,enum:['active','inactive'],default:'active'}},{timestamps:true}))
+export const StockTransaction=model('StockTransaction',new Schema({productId:{type:Schema.Types.ObjectId,ref:'Product',required:true},type:{type:String,enum:['stock_in','stock_out','adjustment'],required:true},quantity:{type:Number,required:true},reason:String,actorId:{type:Schema.Types.ObjectId,ref:'User'}},{timestamps:true}).index({productId:1,createdAt:-1}))
