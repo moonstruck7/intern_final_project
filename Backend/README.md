@@ -126,3 +126,28 @@ Initial role and permission registry (implementation decision): `owner`,
 `platform.manage`. Future business permissions must be added centrally, not in
 route handlers. Set `JWT_ACCESS_SECRET` securely in every environment; auth
 endpoints return a safe configuration error until it is supplied.
+
+## Appointments and queue
+
+Implementation decision — appointments use canonical Customer, Service, and
+Staff ObjectId references; `date` is ISO `YYYY-MM-DD` and times are `HH:mm`.
+The salon timezone is not defined by the contract, so API clients must supply
+those values in the salon's agreed operational timezone; Render server-local
+time is not used for appointment calculations. The service's canonical
+`durationMinutes` derives `endTime`; clients cannot supply a separate duration.
+
+`POST /api/v1/appointments`, `GET /api/v1/appointments`,
+`GET/PATCH /api/v1/appointments/:id`, and
+`GET /api/v1/appointments/queue/today` require appointment/queue permissions.
+List filters are `date`, `startDate`, `endDate`, `staffId`, `customerId`,
+`serviceId`, `status`, `page`, and `limit`.
+
+Implementation decision — lifecycle values are `scheduled`, `arrived`,
+`in_progress`, `completed`, `cancelled`, and `no_show`. Terminal appointments
+cannot be changed; cancelled/no-show appointments do not block a new booking.
+Queue is derived from today's canonical active appointments in start-time order;
+no duplicate queue collection or fabricated positions exist. Boundary-touching
+time ranges are allowed, but overlapping ranges for one staff member are not.
+Customer overlap policy, cancellation policy, salon timezone, and atomic
+concurrent-booking guarantees remain CONTRACT DECISIONS REQUIRED. Current
+application-level conflict checks are not a distributed-locking guarantee.

@@ -7,6 +7,7 @@ import { requestLogger } from '../middleware/requestLogger.js'
 import { healthRouter } from '../routes/health.js'
 import { authRouter } from '../routes/auth.js'
 import { domainRouter } from '../routes/domains.js'
+import { appointmentRouter } from '../appointments/routes.js'
 
 export function createApp() {
   const app = express()
@@ -24,6 +25,7 @@ export function createApp() {
   app.use(env.apiPrefix, healthRouter)
   app.use(`${env.apiPrefix}/auth`, authRouter)
   app.use(env.apiPrefix, domainRouter)
+  app.use(`${env.apiPrefix}/appointments`, appointmentRouter)
   app.use(env.apiPrefix, apiNotFound)
   app.use(errorHandler)
 
