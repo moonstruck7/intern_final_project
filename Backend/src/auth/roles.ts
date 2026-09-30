@@ -3,12 +3,12 @@ export type Role = (typeof roles)[number]
 
 // Implementation decision: names and permission identifiers are not specified
 // by the supplied project contract. Keep this initial registry centralized.
-export const permissions = ['dashboard.read', 'platform.manage'] as const
+export const permissions = ['dashboard.read', 'platform.manage', 'customers.manage', 'services.manage', 'staff.manage'] as const
 export type Permission = (typeof permissions)[number]
 
 const rolePermissions: Record<Role, readonly Permission[]> = {
   owner: permissions,
-  manager: ['dashboard.read'],
+  manager: ['dashboard.read', 'customers.manage', 'services.manage', 'staff.manage'],
   staff: ['dashboard.read'],
 }
 
