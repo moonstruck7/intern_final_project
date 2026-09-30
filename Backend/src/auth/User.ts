@@ -6,6 +6,7 @@ export interface UserDocument {
   passwordHash: string
   isActive: boolean
   roles: Role[]
+  customerId?: unknown
   refreshSessions: Array<{ tokenHash: string; expiresAt: Date; createdAt: Date }>
 }
 
@@ -20,6 +21,7 @@ const userSchema = new Schema<UserDocument>({
   passwordHash: { type: String, required: true, select: false },
   isActive: { type: Boolean, required: true, default: true },
   roles: { type: [{ type: String, enum: roles }], required: true, default: ['staff'] },
+  customerId: { type: Schema.Types.ObjectId, ref: 'Customer', unique: true, sparse: true },
   refreshSessions: { type: [refreshSessionSchema], required: true, default: [] },
 }, { timestamps: true })
 

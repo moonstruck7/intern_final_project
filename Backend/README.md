@@ -157,3 +157,9 @@ application-level conflict checks are not a distributed-locking guarantee.
 Implementation decision — billing uses integer minor units; service prices are converted server-side and client totals are ignored. `POST /api/v1/billing/invoices` accepts an appointment or customer/service source, and payment records are internal only (`cash`, `card`, `upi`, `other`). Refunds, tax, discount, currency, and supplier/valuation rules are CONTRACT DECISIONS REQUIRED.
 
 `POST/GET /api/v1/inventory/products`, `POST /api/v1/inventory/products/:id/stock`, and `GET /api/v1/inventory/products/:id/transactions` are protected inventory APIs. Stock changes create audit records and cannot make stock negative. No service-to-product consumption rule is implemented.
+
+## Customer accounts and booking
+
+Implementation decision — customer accounts are provisioned by an authorized operations user rather than public self-registration: `POST /api/v1/customer/:id/account` requires `customers.manage`, verifies an active existing Customer, bcrypt-hashes the submitted password, assigns only the `customer` role, and sets the one-to-one `User.customerId` link. Password hashes are never returned. Customer users cannot choose or alter this ownership link.
+
+Customer booking uses `POST /api/v1/customer/me/appointments`. Its body contains only `serviceId`, `staffId`, `date`, and `startTime`; the Customer is derived from the authenticated `User.customerId`. It creates the same canonical Appointment record as the administrative API and reuses the shared appointment validation service for active references, duration, availability, and conflicts. Customer-scoped profile, appointment, notification, and invoice routes likewise derive ownership server-side.

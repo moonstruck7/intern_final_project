@@ -11,6 +11,8 @@ import { appointmentRouter } from '../appointments/routes.js'
 import { billingRouter } from '../billing/routes.js'
 import { inventoryRouter } from '../inventory/routes.js'
 import { insightsRouter } from '../insights/routes.js'
+import { customerSessionRouter } from '../routes/customerSession.js'
+import { Service } from '../domains/models.js'
 
 export function createApp() {
   const app = express()
@@ -32,6 +34,10 @@ export function createApp() {
   app.use(`${env.apiPrefix}/billing`, billingRouter)
   app.use(`${env.apiPrefix}/inventory`, inventoryRouter)
   app.use(env.apiPrefix, insightsRouter)
+  app.use(`${env.apiPrefix}/customer`, customerSessionRouter)
+  app.get(`${env.apiPrefix}/catalog/services`, async (_request, response, next) => {
+    try { response.json({ data: await Service.find({ status: 'active' }).sort({ name: 1 }).limit(100) }) } catch (error) { next(error) }
+  })
   app.use(env.apiPrefix, apiNotFound)
   app.use(errorHandler)
 

@@ -1,4 +1,4 @@
-export const roles = ['owner', 'manager', 'staff'] as const
+export const roles = ['owner', 'manager', 'staff', 'customer'] as const
 export type Role = (typeof roles)[number]
 
 // Implementation decision: names and permission identifiers are not specified
@@ -10,6 +10,7 @@ const rolePermissions: Record<Role, readonly Permission[]> = {
   owner: permissions,
   manager: ['dashboard.read', 'customers.manage', 'services.manage', 'staff.manage', 'appointments.manage', 'queue.manage', 'reports.read', 'marketing.manage', 'notifications.manage'],
   staff: ['dashboard.read'],
+  customer: [],
 }
 
 export function hasPermissions(role: Role, required: readonly Permission[]): boolean {
