@@ -28,4 +28,7 @@ export const env = {
   apiPrefix: readApiPrefix(readOptional('API_PREFIX')),
   corsOrigin: readOptional('CORS_ORIGIN'),
   mongodbUri: readOptional('MONGODB_URI'),
+  jwtAccessSecret: readOptional('JWT_ACCESS_SECRET'),
+  accessTokenTtl: readOptional('ACCESS_TOKEN_TTL') ?? '15m',
+  refreshTokenTtlDays: Number(readOptional('REFRESH_TOKEN_TTL_DAYS') ?? '30'),
 } as const

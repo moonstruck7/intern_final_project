@@ -36,6 +36,7 @@ npm run dev
 npm run build
 npm run start
 npm run lint
+npm test
 ```
 
 ## Health route
@@ -87,3 +88,41 @@ npm test
 The default tests cover no-database and unreachable-database behavior without
 credentials. The connected-database integration test is skipped unless an
 explicit disposable `MONGODB_TEST_URI` is supplied.
+
+## Authentication and authorization
+
+Implementation decision — the supplied project contract requires authentication,
+authorization, roles, and permissions, but does not define their exact names,
+token format, or endpoint paths. This API uses signed short-lived bearer access
+tokens (default `15m`) and rotating opaque refresh tokens (default `30` days).
+Only SHA-256 hashes of refresh tokens are stored. Logout revokes the presented
+refresh token; an access token remains usable until its short expiry.
+
+Public registration is intentionally deferred: the supplied contract does not
+define customer onboarding or privileged-account creation. Provision initial
+local users through a future controlled command using environment-provided
+credentials; no default credentials exist in this repository.
+
+For local development, an explicit provisioning command is available only when
+`MONGODB_URI`, `PROVISION_USER_LOGIN`, and `PROVISION_USER_PASSWORD` are set in
+the process environment (optional `PROVISION_USER_ROLE`: `owner`, `manager`, or
+`staff`): `npm run provision:user`. It never supplies credentials itself.
+
+Implemented endpoints:
+
+- `POST /api/v1/auth/login` — `{ loginIdentifier, password }`.
+- `POST /api/v1/auth/refresh` — `{ refreshToken }`; rotates the token.
+- `POST /api/v1/auth/logout` — `{ refreshToken }`; returns `204`.
+- `GET /api/v1/auth/me` — requires `Authorization: Bearer <accessToken>`.
+- `GET /api/v1/auth/authorization-check` — infrastructure-only RBAC check.
+
+User records contain a normalized login identifier, password hash, active
+status, roles, hashed refresh sessions, and timestamps. Passwords must be 8–128
+characters, are bcrypt-hashed, excluded from normal queries, never logged, and
+never returned.
+
+Initial role and permission registry (implementation decision): `owner`,
+`manager`, `staff`; `dashboard.read`, `platform.manage`. Only the owner has
+`platform.manage`. Future business permissions must be added centrally, not in
+route handlers. Set `JWT_ACCESS_SECRET` securely in every environment; auth
+endpoints return a safe configuration error until it is supplied.
