@@ -27,4 +27,5 @@ export const env = {
   port: readPort(readOptional('PORT')),
   apiPrefix: readApiPrefix(readOptional('API_PREFIX')),
   corsOrigin: readOptional('CORS_ORIGIN'),
+  mongodbUri: readOptional('MONGODB_URI'),
 } as const

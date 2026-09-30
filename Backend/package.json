@@ -7,13 +7,15 @@
     "dev": "tsx watch src/server.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
-    "lint": "oxlint src"
+    "lint": "oxlint src",
+    "test": "tsx --test src/**/*.test.ts"
   },
   "dependencies": {
     "cors": "^2.8.6",
     "dotenv": "^18.0.4",
     "express": "^5.2.1",
-    "helmet": "^8.3.0"
+    "helmet": "^8.3.0",
+    "mongoose": "^9.3.3"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",
