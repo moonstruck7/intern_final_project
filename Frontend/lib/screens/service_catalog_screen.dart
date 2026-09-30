@@ -4,6 +4,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import '../models/service_model.dart';
+import '../api/api_exception.dart';
+import '../auth/auth_controller.dart';
+import '../services/service_catalog_repository.dart';
 import '../theme/salon_theme.dart';
 import '../widgets/custom_shimmer_loader.dart';
 import '../widgets/error_banner_widget.dart';
@@ -12,10 +15,9 @@ import 'booking_screen.dart';
 typedef ServiceLoader = Future<List<ServiceModel>> Function();
 
 class ServiceCatalogController extends ChangeNotifier {
-  ServiceCatalogController({ServiceLoader? loader})
-      : _loader = loader ?? _defaultLoader;
+  ServiceCatalogController({required this.loader});
 
-  final ServiceLoader _loader;
+  final ServiceLoader loader;
 
   List<ServiceModel> _services = const [];
   bool _isLoading = false;
@@ -51,10 +53,12 @@ class ServiceCatalogController extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final result = await _loader();
+      final result = await loader();
       _services = List.unmodifiable(result);
-    } catch (error) {
-      _error = error.toString().replaceFirst('Exception: ', '');
+    } on ApiException catch (error) {
+      _error = error.message;
+    } catch (_) {
+      _error = 'Unable to load services. Please try again.';
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -71,63 +75,6 @@ class ServiceCatalogController extends ChangeNotifier {
     notifyListeners();
   }
 
-  static Future<List<ServiceModel>> _defaultLoader() async {
-    await Future<void>.delayed(const Duration(milliseconds: 650));
-    return const [
-      ServiceModel(
-        id: 'hydr-01',
-        name: 'Signature Hydrafacial',
-        category: 'Facial',
-        description:
-            'Deep cleansing, exfoliation, extraction and hydration for a refreshed complexion.',
-        durationMinutes: 45,
-        price: 185,
-        imageUrl:
-            'https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?auto=format&fit=crop&w=900&q=85',
-        featured: true,
-        includedItems: [
-          'Deep Cleansing',
-          'Gentle Extraction',
-          'Custom Serum',
-          'LED Light Therapy',
-        ],
-      ),
-      ServiceModel(
-        id: 'hair-01',
-        name: 'Signature Haircut',
-        category: 'Hair',
-        description:
-            'Personalised cut and styling session with a Luxe Salon specialist.',
-        durationMinutes: 60,
-        price: 85,
-        imageUrl:
-            'https://images.unsplash.com/photo-1562322140-8baeececf3df?auto=format&fit=crop&w=900&q=85',
-        featured: true,
-      ),
-      ServiceModel(
-        id: 'nail-01',
-        name: 'Gel Manicure',
-        category: 'Nails',
-        description:
-            'Shape, cuticle care and long-lasting gel colour with a glossy finish.',
-        durationMinutes: 50,
-        price: 70,
-        imageUrl:
-            'https://images.unsplash.com/photo-1604654894610-df63bc536371?auto=format&fit=crop&w=900&q=85',
-      ),
-      ServiceModel(
-        id: 'skin-01',
-        name: 'Bridal Glow Package',
-        category: 'Skincare',
-        description:
-            'A complete pre-event glow ritual designed around your skin goals.',
-        durationMinutes: 90,
-        price: 240,
-        imageUrl:
-            'https://images.unsplash.com/photo-1515377905703-c4788e51af15?auto=format&fit=crop&w=900&q=85',
-      ),
-    ];
-  }
 }
 
 class ServiceCatalogScreen extends StatelessWidget {
@@ -143,7 +90,10 @@ class ServiceCatalogScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (_) => ServiceCatalogController(loader: loadServices)..load(),
+      create: (context) => ServiceCatalogController(
+        loader: loadServices ??
+            ServiceCatalogRepository(context.read()).fetchServices,
+      )..load(),
       child: _ServiceCatalogView(onServiceSelected: onServiceSelected),
     );
   }
@@ -364,6 +314,7 @@ class _ServiceCatalogViewState extends State<_ServiceCatalogView> {
 class _HeroHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final displayName = context.watch<AuthController>().customer?.displayName;
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
@@ -407,7 +358,7 @@ class _HeroHeader extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 Text(
-                  'Hello, Shreya 👋',
+                  'Hello${displayName == null || displayName.isEmpty ? '' : ', $displayName'} 👋',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: SalonTheme.cocoa,
                         fontWeight: FontWeight.w700,
@@ -534,7 +485,7 @@ class _FeaturedServiceCard extends StatelessWidget {
                         const SizedBox(width: 8),
                         _InfoPill(
                           icon: Icons.payments_outlined,
-                          label: '\$${service.price.toStringAsFixed(0)}',
+                          label: 'Price ${service.price.toStringAsFixed(2)}',
                         ),
                         const Spacer(),
                         // CTA button
@@ -656,8 +607,10 @@ class _ServiceCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  // Category chip
-                  Positioned(
+                  // The catalogue endpoint currently exposes a category
+                  // reference rather than a customer-facing category name.
+                  if (service.category.isNotEmpty)
+                    Positioned(
                     top: 6,
                     left: 6,
                     child: Container(
@@ -729,7 +682,7 @@ class _ServiceCard extends StatelessWidget {
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Text(
-                            '\$${service.price.toStringAsFixed(0)}',
+                            'Price ${service.price.toStringAsFixed(2)}',
                             style: Theme.of(context)
                                 .textTheme
                                 .labelMedium

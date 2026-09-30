@@ -48,6 +48,23 @@ server, network, timeout, and malformed-response failures to safe user-facing
 messages. It does not expose server stack traces, MongoDB details, or JWT
 details in the interface.
 
+## Service catalogue
+
+After authentication, the catalogue uses the backend's canonical public
+`GET /api/v1/catalog/services` endpoint through `ServiceCatalogRepository` and
+the shared `ApiClient`. The backend returns active services only; Flutter also
+defensively excludes an unexpected inactive record. The canonical MongoDB
+service `_id` is preserved as `ServiceModel.id` for the booking request that
+will be integrated next.
+
+The current backend response provides `_id`, `name`, `categoryId`, `price`,
+`durationMinutes`, and `status`. It does not provide a customer-facing category
+name, description, image, or currency metadata. The UI therefore does not
+substitute prototype values for those fields, does not render category filters,
+and labels the raw price without assuming a currency. Category display data
+must be added to the existing backend contract before a customer-facing
+category label can be shown.
+
 ## Validation
 
 ```sh
@@ -64,9 +81,8 @@ claim a running backend, device, or emulator integration test.
 
 ## Deliberately deferred Part 9 work
 
-The existing service catalogue, appointments, inbox/notifications, invoice
-history, booking flow, and loyalty presentation still use their prior prototype
-screen data. Their real API integration is intentionally outside this focused
-HTTP/session task and must be completed in later Part 9 stages. The static
-profile identity and no-op logout behavior were replaced with the authenticated
+Appointments, inbox/notifications, invoice history, booking flow, and loyalty
+presentation still use their prior prototype screen data. Their real API
+integration must be completed in later Part 9 stages. The static profile
+identity and no-op logout behavior were replaced with the authenticated
 customer profile and backend logout flow.

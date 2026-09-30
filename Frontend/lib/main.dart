@@ -22,18 +22,22 @@ class LuxeSalonApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => AuthController(
-        AuthRepository(
-          apiClient: ApiClient(),
-          sessionStore: SecureSessionStore(),
+    return Provider<ApiClient>(
+      create: (_) => ApiClient(),
+      dispose: (_, apiClient) => apiClient.dispose(),
+      child: ChangeNotifierProvider(
+        create: (context) => AuthController(
+          AuthRepository(
+            apiClient: context.read<ApiClient>(),
+            sessionStore: SecureSessionStore(),
+          ),
+        )..restore(),
+        child: MaterialApp(
+          title: 'Luxe Salon',
+          debugShowCheckedModeBanner: false,
+          theme: SalonTheme.light(),
+          home: const _AuthGate(),
         ),
-      )..restore(),
-      child: MaterialApp(
-        title: 'Luxe Salon',
-        debugShowCheckedModeBanner: false,
-        theme: SalonTheme.light(),
-        home: const _AuthGate(),
       ),
     );
   }
