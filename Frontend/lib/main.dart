@@ -25,18 +25,20 @@ class LuxeSalonApp extends StatelessWidget {
     return Provider<ApiClient>(
       create: (_) => ApiClient(),
       dispose: (_, apiClient) => apiClient.dispose(),
-      child: ChangeNotifierProvider(
-        create: (context) => AuthController(
-          AuthRepository(
-            apiClient: context.read<ApiClient>(),
-            sessionStore: SecureSessionStore(),
+      child: Provider<AuthRepository>(
+        create: (context) => AuthRepository(
+          apiClient: context.read<ApiClient>(),
+          sessionStore: SecureSessionStore(),
+        ),
+        child: ChangeNotifierProvider(
+          create: (context) =>
+              AuthController(context.read<AuthRepository>())..restore(),
+          child: MaterialApp(
+            title: 'Luxe Salon',
+            debugShowCheckedModeBanner: false,
+            theme: SalonTheme.light(),
+            home: const _AuthGate(),
           ),
-        )..restore(),
-        child: MaterialApp(
-          title: 'Luxe Salon',
-          debugShowCheckedModeBanner: false,
-          theme: SalonTheme.light(),
-          home: const _AuthGate(),
         ),
       ),
     );
@@ -50,8 +52,8 @@ class _AuthGate extends StatelessWidget {
   Widget build(BuildContext context) {
     return switch (context.watch<AuthController>().state) {
       AuthState.loading => const Scaffold(
-          body: Center(child: CircularProgressIndicator()),
-        ),
+        body: Center(child: CircularProgressIndicator()),
+      ),
       AuthState.authenticated => const SalonHomeShell(),
       AuthState.unauthenticated || AuthState.error => const LoginScreen(),
     };
@@ -78,10 +80,7 @@ class _SalonHomeShellState extends State<SalonHomeShell> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _screens,
-      ),
+      body: IndexedStack(index: _currentIndex, children: _screens),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
         onDestinationSelected: (index) {
@@ -130,9 +129,8 @@ class _InboxScreen extends StatelessWidget {
             label: const Text('Mark all read'),
             style: TextButton.styleFrom(
               foregroundColor: SalonTheme.cocoa,
-              textStyle: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+              textStyle: Theme.of(context).textTheme.labelMedium
+                  ?.copyWith(fontWeight: FontWeight.w700),
             ),
           ),
           const SizedBox(width: 8),
@@ -144,8 +142,7 @@ class _InboxScreen extends StatelessWidget {
           _InboxTile(
             type: _InboxType.appointment,
             title: 'Upcoming appointment',
-            message:
-                'Your Signature Hydrafacial with Emma is on Thu, Sep 5 at 2:30 PM.',
+            message: 'Your Signature Hydrafacial with Emma is on Thu, Sep 5 at 2:30 PM.',
             timeAgo: '2h ago',
             isUnread: true,
           ),
@@ -153,8 +150,7 @@ class _InboxScreen extends StatelessWidget {
           _InboxTile(
             type: _InboxType.loyalty,
             title: 'Loyalty reward unlocked 🎁',
-            message:
-                'You\'ve earned 50 points from your last visit. You now have 320 pts!',
+            message: 'You\'ve earned 50 points from your last visit. You now have 320 pts!',
             timeAgo: '1d ago',
             isUnread: true,
           ),
@@ -171,8 +167,7 @@ class _InboxScreen extends StatelessWidget {
           _InboxTile(
             type: _InboxType.appointment,
             title: 'Booking confirmed',
-            message:
-                'Your Signature Haircut with Sarah on Aug 22 at 11:00 AM was confirmed.',
+            message: 'Your Signature Haircut with Sarah on Aug 22 at 11:00 AM was confirmed.',
             timeAgo: '2w ago',
             isUnread: false,
           ),
@@ -203,29 +198,27 @@ class _InboxTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final (accentColor, bgColor, icon) = switch (type) {
       _InboxType.appointment => (
-          SalonTheme.cocoa,
-          const Color(0xFFF5E3D9),
-          Icons.calendar_month_rounded,
-        ),
+        SalonTheme.cocoa,
+        const Color(0xFFF5E3D9),
+        Icons.calendar_month_rounded,
+      ),
       _InboxType.loyalty => (
-          SalonTheme.goldAccent,
-          const Color(0xFFFAF0DC),
-          Icons.stars_rounded,
-        ),
+        SalonTheme.goldAccent,
+        const Color(0xFFFAF0DC),
+        Icons.stars_rounded,
+      ),
       _InboxType.promo => (
-          SalonTheme.roseDust,
-          const Color(0xFFF5E0E4),
-          Icons.local_offer_rounded,
-        ),
+        SalonTheme.roseDust,
+        const Color(0xFFF5E0E4),
+        Icons.local_offer_rounded,
+      ),
     };
 
     return Container(
       decoration: BoxDecoration(
         color: isUnread ? Colors.white : const Color(0xFFFBF7F4),
         borderRadius: BorderRadius.circular(18),
-        border: Border(
-          left: BorderSide(color: accentColor, width: 4),
-        ),
+        border: Border(left: BorderSide(color: accentColor, width: 4)),
         boxShadow: isUnread
             ? [
                 BoxShadow(
@@ -245,10 +238,7 @@ class _InboxTile extends StatelessWidget {
             Container(
               width: 40,
               height: 40,
-              decoration: BoxDecoration(
-                color: bgColor,
-                shape: BoxShape.circle,
-              ),
+              decoration: BoxDecoration(color: bgColor, shape: BoxShape.circle),
               child: Icon(icon, size: 20, color: accentColor),
             ),
             const SizedBox(width: 12),
@@ -261,9 +251,7 @@ class _InboxTile extends StatelessWidget {
                       Expanded(
                         child: Text(
                           title,
-                          style: Theme.of(context)
-                              .textTheme
-                              .titleSmall
+                          style: Theme.of(context).textTheme.titleSmall
                               ?.copyWith(
                                 fontWeight: isUnread
                                     ? FontWeight.w800
@@ -286,19 +274,17 @@ class _InboxTile extends StatelessWidget {
                   Text(
                     message,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .onSurfaceVariant,
-                          height: 1.4,
-                        ),
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      height: 1.4,
+                    ),
                   ),
                   const SizedBox(height: 6),
                   Text(
                     timeAgo,
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: accentColor,
-                          fontWeight: FontWeight.w700,
-                        ),
+                      color: accentColor,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ],
               ),
@@ -429,7 +415,9 @@ class _ProfileScreen extends StatelessWidget {
                       minimumSize: const Size(double.infinity, 50),
                       foregroundColor: const Color(0xFF9E2D2D),
                       side: const BorderSide(
-                          color: Color(0xFFE8BEBE), width: 1.5),
+                        color: Color(0xFFE8BEBE),
+                        width: 1.5,
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
                       ),
@@ -534,17 +522,15 @@ class _ProfileHeader extends StatelessWidget {
                       const SizedBox(height: 4),
                       Text(
                         email,
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodySmall
-                            ?.copyWith(
-                              color: SalonTheme.cocoa,
-                            ),
+                        style: Theme.of(context).textTheme.bodySmall
+                            ?.copyWith(color: SalonTheme.cocoa),
                       ),
                       const SizedBox(height: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 4),
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           gradient: SalonTheme.loyaltyGradient,
                           borderRadius: BorderRadius.circular(20),
@@ -552,14 +538,15 @@ class _ProfileHeader extends StatelessWidget {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.stars_rounded,
-                                size: 13, color: SalonTheme.goldAccent),
+                            const Icon(
+                              Icons.stars_rounded,
+                              size: 13,
+                              color: SalonTheme.goldAccent,
+                            ),
                             const SizedBox(width: 4),
                             Text(
                               'Gold Member',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .labelSmall
+                              style: Theme.of(context).textTheme.labelSmall
                                   ?.copyWith(
                                     color: SalonTheme.goldAccent,
                                     fontWeight: FontWeight.w800,
@@ -581,10 +568,7 @@ class _ProfileHeader extends StatelessWidget {
 }
 
 class _SettingsSection extends StatelessWidget {
-  const _SettingsSection({
-    required this.title,
-    required this.tiles,
-  });
+  const _SettingsSection({required this.title, required this.tiles});
 
   final String title;
   final List<_SettingsTile> tiles;
@@ -601,11 +585,11 @@ class _SettingsSection extends StatelessWidget {
             child: Text(
               title.toUpperCase(),
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 1.2,
-                    fontSize: 11,
-                  ),
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.2,
+                fontSize: 11,
+              ),
             ),
           ),
           Container(
@@ -622,10 +606,11 @@ class _SettingsSection extends StatelessWidget {
                   tiles[i],
                   if (i < tiles.length - 1)
                     const Divider(
-                        height: 1,
-                        indent: 56,
-                        endIndent: 0,
-                        color: Color(0xFFF0E5DD)),
+                      height: 1,
+                      indent: 56,
+                      endIndent: 0,
+                      color: Color(0xFFF0E5DD),
+                    ),
                 ],
               ],
             ),
@@ -651,8 +636,7 @@ class _SettingsTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      contentPadding:
-          const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
       leading: Container(
         width: 36,
         height: 36,
@@ -664,14 +648,16 @@ class _SettingsTile extends StatelessWidget {
       ),
       title: Text(
         title,
-        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
+        style: Theme.of(context).textTheme.bodyMedium
+            ?.copyWith(fontWeight: FontWeight.w700),
       ),
-      trailing: trailing ??
-          Icon(Icons.chevron_right_rounded,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-              size: 20),
+      trailing:
+          trailing ??
+          Icon(
+            Icons.chevron_right_rounded,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+            size: 20,
+          ),
       onTap: () {},
     );
   }

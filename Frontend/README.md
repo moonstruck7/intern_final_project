@@ -79,10 +79,26 @@ response handling, secure-session abstraction, one-time refresh/retry, logout
 clearing, unauthorized behavior, and customer profile parsing. They do not
 claim a running backend, device, or emulator integration test.
 
-## Deliberately deferred Part 9 work
+## Customer appointment and booking integration
 
-Appointments, inbox/notifications, invoice history, booking flow, and loyalty
-presentation still use their prior prototype screen data. Their real API
-integration must be completed in later Part 9 stages. The static profile
-identity and no-op logout behavior were replaced with the authenticated
-customer profile and backend logout flow.
+The customer appointment screens use the shared backend API and never accept a
+client-selected customer identity. `GET /api/v1/customer/me/appointments` is
+used for history, while service names and prices are resolved from the canonical
+catalog and staff names from the customer-safe staff directory. Missing display
+references are shown as unavailable rather than replaced by fake records.
+
+Booking uses `POST /api/v1/customer/me/appointments` with only `serviceId`,
+`staffId`, `date`, and `startTime`. The backend derives Customer ownership from
+the authenticated `User.customerId`; the client does not send `customerId`.
+The staff directory and date-specific availability are read from
+`GET /api/v1/customer/staff` and
+`GET /api/v1/customer/staff/:staffId/availability?date=YYYY-MM-DD`.
+
+Availability windows do not define a slot-generation policy, so the UI offers
+only each backend window's canonical `startTime`. This is an implementation
+decision, not a PRD/SRS-defined interval rule. Authentication, token refresh,
+401/403 handling, validation errors, loading, empty states, and network errors
+all pass through the shared API/session layer.
+
+Inbox/notifications, invoice history, and loyalty presentation remain separate
+Part 9 work and are not represented as completed by this appointment change.

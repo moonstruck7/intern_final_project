@@ -2,7 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../models/appointment_model.dart';
-import '../models/service_model.dart';
+import '../api/api_client.dart';
+import '../api/api_exception.dart';
+import '../auth/auth_repository.dart';
+import '../services/customer_appointments_repository.dart';
+import '../services/customer_booking_repository.dart';
+import '../services/service_catalog_repository.dart';
 import '../theme/salon_theme.dart';
 import '../widgets/appointment_status_badge.dart';
 import '../widgets/custom_shimmer_loader.dart';
@@ -10,39 +15,36 @@ import '../widgets/error_banner_widget.dart';
 import '../widgets/loyalty_card_widget.dart';
 
 typedef AppointmentLoader = Future<List<AppointmentModel>> Function();
-typedef AppointmentAction = Future<void> Function(String appointmentId);
 
 class AppointmentsController extends ChangeNotifier {
-  AppointmentsController({
-    AppointmentLoader? loader,
-    AppointmentAction? cancelAction,
-    AppointmentAction? rescheduleAction,
-  })  : _loader = loader ?? _defaultLoader,
-        _cancelAction = cancelAction ?? _defaultAction,
-        _rescheduleAction = rescheduleAction ?? _defaultAction;
+  AppointmentsController({required this.loader});
 
-  final AppointmentLoader _loader;
-  final AppointmentAction _cancelAction;
-  final AppointmentAction _rescheduleAction;
+  final AppointmentLoader loader;
 
   List<AppointmentModel> _appointments = const [];
   bool isLoading = false;
   String? error;
   final Set<String> _busyIds = <String>{};
 
-  List<AppointmentModel> get upcoming => _appointments
-      .where((item) =>
-          item.status == AppointmentStatus.upcoming &&
-          !item.dateTime.isBefore(DateTime.now()))
-      .toList()
-    ..sort((a, b) => a.dateTime.compareTo(b.dateTime));
+  List<AppointmentModel> get upcoming =>
+      _appointments
+          .where(
+            (item) =>
+                item.status == AppointmentStatus.upcoming &&
+                !item.dateTime.isBefore(DateTime.now()),
+          )
+          .toList()
+        ..sort((a, b) => a.dateTime.compareTo(b.dateTime));
 
-  List<AppointmentModel> get past => _appointments
-      .where((item) =>
-          item.status != AppointmentStatus.upcoming ||
-          item.dateTime.isBefore(DateTime.now()))
-      .toList()
-    ..sort((a, b) => b.dateTime.compareTo(a.dateTime));
+  List<AppointmentModel> get past =>
+      _appointments
+          .where(
+            (item) =>
+                item.status != AppointmentStatus.upcoming ||
+                item.dateTime.isBefore(DateTime.now()),
+          )
+          .toList()
+        ..sort((a, b) => b.dateTime.compareTo(a.dateTime));
 
   bool isBusy(String id) => _busyIds.contains(id);
 
@@ -52,128 +54,40 @@ class AppointmentsController extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _appointments = List.unmodifiable(await _loader());
-    } catch (e) {
-      error = e.toString().replaceFirst('Exception: ', '');
+      _appointments = List.unmodifiable(await loader());
+    } on ApiException catch (exception) {
+      error = exception.message;
+    } catch (_) {
+      error = 'Unable to load appointments. Please try again.';
     } finally {
       isLoading = false;
       notifyListeners();
     }
   }
-
-  Future<void> cancel(String id) async {
-    if (_busyIds.contains(id)) return;
-    _busyIds.add(id);
-    notifyListeners();
-
-    try {
-      await _cancelAction(id);
-      _appointments = _appointments
-          .map(
-            (appointment) => appointment.id == id
-                ? appointment.copyWith(status: AppointmentStatus.cancelled)
-                : appointment,
-          )
-          .toList(growable: false);
-    } finally {
-      _busyIds.remove(id);
-      notifyListeners();
-    }
-  }
-
-  Future<void> reschedule(String id, DateTime newDateTime) async {
-    if (_busyIds.contains(id)) return;
-    _busyIds.add(id);
-    notifyListeners();
-
-    try {
-      await _rescheduleAction(id);
-      _appointments = _appointments
-          .map(
-            (appointment) => appointment.id == id
-                ? appointment.copyWith(dateTime: newDateTime)
-                : appointment,
-          )
-          .toList(growable: false);
-    } finally {
-      _busyIds.remove(id);
-      notifyListeners();
-    }
-  }
-
-  static Future<void> _defaultAction(String id) async {
-    await Future<void>.delayed(const Duration(milliseconds: 450));
-  }
-
-  static Future<List<AppointmentModel>> _defaultLoader() async {
-    await Future<void>.delayed(const Duration(milliseconds: 650));
-
-    final now = DateTime.now();
-    const service = ServiceModel(
-      id: 'hydr-01',
-      name: 'Signature Hydrafacial',
-      category: 'Facial',
-      description: 'Deep cleansing and hydration.',
-      durationMinutes: 45,
-      price: 185,
-      imageUrl:
-          'https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?auto=format&fit=crop&w=900&q=85',
-    );
-
-    return [
-      AppointmentModel(
-        id: 'apt-1001',
-        service: service,
-        dateTime: DateTime(now.year, now.month, now.day + 2, 14, 30),
-        durationMinutes: 45,
-        staffName: 'Emma',
-        staffImageUrl:
-            'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=200&q=80',
-        status: AppointmentStatus.upcoming,
-        totalPrice: 185,
-      ),
-      AppointmentModel(
-        id: 'apt-1002',
-        service: service.copyWith(
-          id: 'hair-01',
-          name: 'Signature Haircut',
-          category: 'Hair',
-          durationMinutes: 60,
-          price: 85,
-          imageUrl:
-              'https://images.unsplash.com/photo-1562322140-8baeececf3df?auto=format&fit=crop&w=900&q=85',
-        ),
-        dateTime: DateTime(now.year, now.month, now.day - 12, 11, 0),
-        durationMinutes: 60,
-        staffName: 'Sarah',
-        staffImageUrl:
-            'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=200&q=80',
-        status: AppointmentStatus.completed,
-        totalPrice: 85,
-      ),
-    ];
-  }
 }
 
 class MyAppointmentsScreen extends StatelessWidget {
-  const MyAppointmentsScreen({
-    super.key,
-    this.loadAppointments,
-    this.onCancel,
-    this.onReschedule,
-  });
+  const MyAppointmentsScreen({super.key, this.loadAppointments});
 
   final AppointmentLoader? loadAppointments;
-  final AppointmentAction? onCancel;
-  final AppointmentAction? onReschedule;
 
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (_) => AppointmentsController(
-        loader: loadAppointments,
-        cancelAction: onCancel,
-        rescheduleAction: onReschedule,
+      create: (context) => AppointmentsController(
+        loader:
+            loadAppointments ??
+            CustomerAppointmentsRepository(
+              apiClient: context.read<ApiClient>(),
+              authRepository: context.read<AuthRepository>(),
+              serviceCatalogRepository: ServiceCatalogRepository(
+                context.read<ApiClient>(),
+              ),
+              bookingRepository: CustomerBookingRepository(
+                apiClient: context.read<ApiClient>(),
+                authRepository: context.read<AuthRepository>(),
+              ),
+            ).fetchHistory,
       )..load(),
       child: const _AppointmentsView(),
     );
@@ -212,20 +126,16 @@ class _AppointmentsView extends StatelessWidget {
                         color: SalonTheme.cocoa.withValues(alpha: 0.30),
                         blurRadius: 8,
                         offset: const Offset(0, 2),
-                      )
+                      ),
                     ],
                   ),
                   indicatorSize: TabBarIndicatorSize.tab,
                   dividerColor: Colors.transparent,
                   labelColor: Colors.white,
                   unselectedLabelColor: SalonTheme.cocoa,
-                  labelStyle: Theme.of(context)
-                      .textTheme
-                      .labelLarge
+                  labelStyle: Theme.of(context).textTheme.labelLarge
                       ?.copyWith(fontWeight: FontWeight.w800),
-                  unselectedLabelStyle: Theme.of(context)
-                      .textTheme
-                      .labelLarge
+                  unselectedLabelStyle: Theme.of(context).textTheme.labelLarge
                       ?.copyWith(fontWeight: FontWeight.w700),
                   tabs: const [
                     Tab(text: 'Upcoming'),
@@ -247,7 +157,7 @@ class _AppointmentsView extends StatelessWidget {
                 emptyTitle: 'No upcoming appointments',
                 emptyMessage:
                     'Your next salon visit will appear here after you book.',
-                allowActions: true,
+                allowActions: false,
                 showLoyalty: true,
               ),
               _AppointmentList(
@@ -344,8 +254,7 @@ class _AppointmentList extends StatelessWidget {
         }
         final apptIndex = showLoyalty ? index - 1 : index;
         return Padding(
-          padding: EdgeInsets.fromLTRB(
-              20, apptIndex == 0 ? 14 : 0, 20, 14),
+          padding: EdgeInsets.fromLTRB(20, apptIndex == 0 ? 14 : 0, 20, 14),
           child: _AppointmentCard(
             appointment: appointments[apptIndex],
             controller: controller,
@@ -385,9 +294,7 @@ class _AppointmentCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border(
-          left: BorderSide(color: accentColor, width: 4),
-        ),
+        border: Border(left: BorderSide(color: accentColor, width: 4)),
         boxShadow: [
           BoxShadow(
             color: accentColor.withValues(alpha: 0.08),
@@ -410,9 +317,9 @@ class _AppointmentCard extends StatelessWidget {
                   Text(
                     _dateLabel(appointment.dateTime),
                     style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                          color: scheme.onSurfaceVariant,
-                          fontWeight: FontWeight.w700,
-                        ),
+                      color: scheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
               ],
             ),
@@ -447,18 +354,17 @@ class _AppointmentCard extends StatelessWidget {
                       child: Container(
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          border: Border.all(
-                              color: Colors.white, width: 2),
+                          border: Border.all(color: Colors.white, width: 2),
                         ),
                         child: CircleAvatar(
                           radius: 14,
                           backgroundImage: NetworkImage(
-                              appointment.staffImageUrl),
+                            appointment.staffImageUrl,
+                          ),
                           onBackgroundImageError: (_, _) {},
                           backgroundColor: scheme.primaryContainer,
                           child: appointment.staffImageUrl.isEmpty
-                              ? const Icon(Icons.person_rounded,
-                                  size: 14)
+                              ? const Icon(Icons.person_rounded, size: 14)
                               : null,
                         ),
                       ),
@@ -474,27 +380,23 @@ class _AppointmentCard extends StatelessWidget {
                         appointment.service.name,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleMedium
+                        style: Theme.of(context).textTheme.titleMedium
                             ?.copyWith(fontWeight: FontWeight.w800),
                       ),
                       const SizedBox(height: 6),
                       Row(
                         children: [
-                          Icon(Icons.schedule_rounded,
-                              size: 13,
-                              color: scheme.onSurfaceVariant),
+                          Icon(
+                            Icons.schedule_rounded,
+                            size: 13,
+                            color: scheme.onSurfaceVariant,
+                          ),
                           const SizedBox(width: 3),
                           Expanded(
                             child: Text(
                               appointment.timeRange,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodySmall
-                                  ?.copyWith(
-                                    color: scheme.onSurfaceVariant,
-                                  ),
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(color: scheme.onSurfaceVariant),
                             ),
                           ),
                         ],
@@ -502,32 +404,30 @@ class _AppointmentCard extends StatelessWidget {
                       const SizedBox(height: 3),
                       Row(
                         children: [
-                          Icon(Icons.person_outline_rounded,
-                              size: 13,
-                              color: scheme.onSurfaceVariant),
+                          Icon(
+                            Icons.person_outline_rounded,
+                            size: 13,
+                            color: scheme.onSurfaceVariant,
+                          ),
                           const SizedBox(width: 3),
                           Text(
                             appointment.staffName,
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodySmall
-                                ?.copyWith(
-                                  color: scheme.onSurfaceVariant,
-                                ),
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(color: scheme.onSurfaceVariant),
                           ),
                           const Spacer(),
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 9, vertical: 3),
+                              horizontal: 9,
+                              vertical: 3,
+                            ),
                             decoration: BoxDecoration(
                               color: SalonTheme.warmSurface,
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Text(
-                              '\$${appointment.totalPrice.toStringAsFixed(0)}',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .labelMedium
+                              'Price ${appointment.totalPrice?.toStringAsFixed(2) ?? ''}',
+                              style: Theme.of(context).textTheme.labelMedium
                                   ?.copyWith(
                                     color: SalonTheme.cocoa,
                                     fontWeight: FontWeight.w800,
@@ -567,20 +467,17 @@ class _AppointmentCard extends StatelessWidget {
                       ),
                       onPressed: busy
                           ? null
-                          : () =>
-                              _showReschedulePicker(context, controller),
+                          : () => _showReschedulePicker(context, controller),
                       child: busy
                           ? const SizedBox(
                               width: 18,
                               height: 18,
-                              child: CircularProgressIndicator(
-                                  strokeWidth: 2),
+                              child: CircularProgressIndicator(strokeWidth: 2),
                             )
                           : const Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(Icons.edit_calendar_rounded,
-                                    size: 16),
+                                Icon(Icons.edit_calendar_rounded, size: 16),
                                 SizedBox(width: 6),
                                 Text('Reschedule'),
                               ],
@@ -616,83 +513,38 @@ class _AppointmentCard extends StatelessWidget {
     BuildContext context,
     AppointmentsController controller,
   ) async {
-    final shouldCancel = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20)),
-        title: const Text('Cancel appointment?'),
-        content: const Text(
-          'This will cancel the selected appointment. You can book a new slot anytime.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Keep'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Yes, Cancel'),
-          ),
-        ],
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Appointment changes are not available yet.'),
       ),
     );
-
-    if (shouldCancel == true && context.mounted) {
-      await controller.cancel(appointment.id);
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Appointment cancelled.')),
-        );
-      }
-    }
   }
 
   Future<void> _showReschedulePicker(
     BuildContext context,
     AppointmentsController controller,
   ) async {
-    final today = DateTime.now();
-    final picked = await showDatePicker(
-      context: context,
-      firstDate: DateTime(today.year, today.month, today.day),
-      lastDate: DateTime(today.year, today.month, today.day + 90),
-      initialDate: appointment.dateTime.isBefore(today)
-          ? DateTime(today.year, today.month, today.day)
-          : appointment.dateTime,
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Appointment changes are not available yet.'),
+      ),
     );
-
-    if (picked == null || !context.mounted) return;
-
-    final selectedTime = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay.fromDateTime(appointment.dateTime),
-    );
-
-    if (selectedTime == null || !context.mounted) return;
-
-    final newDateTime = DateTime(
-      picked.year,
-      picked.month,
-      picked.day,
-      selectedTime.hour,
-      selectedTime.minute,
-    );
-
-    await controller.reschedule(appointment.id, newDateTime);
-
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Appointment rescheduled successfully.')),
-      );
-    }
   }
 
   String _dateLabel(DateTime date) {
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '${months[date.month - 1]} ${date.day}, ${date.year}';
   }
@@ -731,10 +583,8 @@ class _CountdownChip extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: Colors.white,
-              fontWeight: FontWeight.w800,
-            ),
+        style: Theme.of(context).textTheme.labelSmall
+            ?.copyWith(color: Colors.white, fontWeight: FontWeight.w800),
       ),
     );
   }
