@@ -164,6 +164,16 @@ Implementation decision — customer accounts are provisioned by an authorized o
 
 Customer booking uses `POST /api/v1/customer/me/appointments`. Its body contains only `serviceId`, `staffId`, `date`, and `startTime`; the Customer is derived from the authenticated `User.customerId`. It creates the same canonical Appointment record as the administrative API and reuses the shared appointment validation service for active references, duration, availability, and conflicts. Customer-scoped profile, appointment, notification, and invoice routes likewise derive ownership server-side.
 
+Customer invoice/payment and notification reads are implementation-level
+customer-facing contracts, not PRD/SRS-mandated endpoint names. A linked
+customer can read only `GET /api/v1/customer/me/invoices` (canonical invoices
+with their recorded payments) and `GET /api/v1/customer/me/notifications`.
+`PATCH /api/v1/customer/me/notifications/:id/read` first verifies the linked
+customer role/ownership and then updates only a Customer-referenced
+notification belonging to that customer. Administrative billing and insight
+routes remain permission-protected. The customer routes do not create payments,
+choose payment methods, or expose internal billing metadata.
+
 ### Customer-safe booking discovery
 
 Implementation decision — the documented customer-booking workflow requires a

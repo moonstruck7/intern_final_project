@@ -2,7 +2,7 @@ import bcrypt from 'bcryptjs'
 import { z } from 'zod'
 import { env } from '../config/env.js'
 import { HttpError } from '../shared/errors.js'
-import { type Role } from './roles.js'
+import { permissionsForRole, type Role } from './roles.js'
 import { User } from './User.js'
 import { createAccessToken, createRefreshToken, hashRefreshToken } from './tokens.js'
 
@@ -19,7 +19,7 @@ function parse<T>(schema: z.ZodType<T>, value: unknown): T {
 }
 
 function safeUser(user: { _id: unknown; loginIdentifier: string; isActive: boolean; roles: Role[] }) {
-  return { id: String(user._id), loginIdentifier: user.loginIdentifier, isActive: user.isActive, roles: user.roles }
+  return { id: String(user._id), loginIdentifier: user.loginIdentifier, isActive: user.isActive, roles: user.roles, permissions: permissionsForRole(user.roles[0]) }
 }
 
 async function issueSession(user: InstanceType<typeof User>) {

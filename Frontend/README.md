@@ -100,5 +100,18 @@ decision, not a PRD/SRS-defined interval rule. Authentication, token refresh,
 401/403 handling, validation errors, loading, empty states, and network errors
 all pass through the shared API/session layer.
 
-Inbox/notifications, invoice history, and loyalty presentation remain separate
-Part 9 work and are not represented as completed by this appointment change.
+## Invoice/payment history and notifications
+
+The customer app now uses `GET /api/v1/customer/me/invoices` for read-only
+invoice and embedded payment history. It displays server-provided invoice
+status, total, recorded payments, and balance without recalculating or creating
+payments. No online payment gateway is implemented because the current backend
+contract only supports internal administrative payment recording.
+
+The Inbox uses `GET /api/v1/customer/me/notifications` and marks one displayed
+notification read with `PATCH /api/v1/customer/me/notifications/:id/read`.
+Neither workflow sends a customer ID: authorization and ownership are derived
+from the authenticated backend `User.customerId`. These customer-scoped paths
+are existing implementation-level contracts, not endpoint names mandated by the
+PRD/SRS. Loading, empty, retry, malformed-response, 401 refresh, and 403 error
+states use the shared API/session layer.

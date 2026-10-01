@@ -16,3 +16,5 @@ const rolePermissions: Record<Role, readonly Permission[]> = {
 export function hasPermissions(role: Role, required: readonly Permission[]): boolean {
   return required.every((permission) => rolePermissions[role].includes(permission))
 }
+
+export function permissionsForRole(role: Role): readonly Permission[] { return rolePermissions[role] }

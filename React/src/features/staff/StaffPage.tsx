@@ -1,14 +1,4 @@
-import { ContractUnavailableSection } from '../../shared/components/ContractUnavailableSection'
-import { getStaffContractRequirement } from './staffApi'
+import { ApiListPage } from '../../shared/components/ApiListPage'
+import { ApiMutationPanel } from '../../shared/components/ApiMutationPanel'
 
-export function StaffPage() {
-  return <section className="staff-page">
-    <div className="page-heading"><div><p className="eyebrow">B2 Staff operations</p><h1>Staff</h1><p className="muted">This is the canonical staff-management boundary for A3 appointment scheduling and availability checks through the shared backend API.</p></div></div>
-    <div className="catalog-grid">
-      <ContractUnavailableSection eyebrow="B2 Staff operations" title="Staff records and profiles" description="Manage staff records, profiles, and approved business roles or designations once the shared staff API contract is available." missing={getStaffContractRequirement('staff').missing} />
-      <ContractUnavailableSection eyebrow="B2 Staff operations" title="Scheduling and availability" description="Scheduling will provide the real availability A3 needs for appointments; no shifts or working hours are assumed here." missing={getStaffContractRequirement('scheduling').missing} />
-      <ContractUnavailableSection eyebrow="B2 Staff operations" title="Attendance" description="Attendance is deferred until approved records, rules, and authorization are defined by the backend contract." missing={getStaffContractRequirement('attendance').missing} />
-      <ContractUnavailableSection eyebrow="B2 Staff operations" title="Leave" description="Leave is deferred until approved leave policies, lifecycle rules, and API contract are defined." missing={getStaffContractRequirement('leave').missing} />
-    </div>
-  </section>
-}
+export function StaffPage() { return <><ApiListPage eyebrow="B2 Staff operations" title="Staff" path="/api/v1/staff" /><ApiListPage eyebrow="B2 Scheduling" title="Availability" path="/api/v1/staff/availability" /><ApiListPage eyebrow="B2 Attendance" title="Attendance" path="/api/v1/attendance" /><ApiListPage eyebrow="B2 Leave" title="Leave requests" path="/api/v1/leave" /><ApiMutationPanel title="Create staff member" path="/api/v1/staff" fields={[{ name: 'displayName', label: 'Display name', required: true }, { name: 'designation', label: 'Designation' }, { name: 'email', label: 'Email', type: 'email' }, { name: 'phone', label: 'Phone' }]} /><ApiMutationPanel title="Add availability" path="/api/v1/staff/availability" fields={[{ name: 'staffId', label: 'Staff ID', required: true }, { name: 'date', label: 'Date (YYYY-MM-DD)', required: true }, { name: 'startTime', label: 'Start time (HH:MM)', required: true }, { name: 'endTime', label: 'End time (HH:MM)', required: true }]} /><ApiMutationPanel title="Record attendance" path="/api/v1/attendance" fields={[{ name: 'staffId', label: 'Staff ID', required: true }, { name: 'date', label: 'Date (YYYY-MM-DD)', required: true }, { name: 'status', label: 'Status: present or absent', required: true }, { name: 'checkIn', label: 'Check in (HH:MM)' }, { name: 'checkOut', label: 'Check out (HH:MM)' }]} /><ApiMutationPanel title="Create leave request" path="/api/v1/leave" fields={[{ name: 'staffId', label: 'Staff ID', required: true }, { name: 'startDate', label: 'Start date (YYYY-MM-DD)', required: true }, { name: 'endDate', label: 'End date (YYYY-MM-DD)', required: true }, { name: 'reason', label: 'Reason' }]} /></> }

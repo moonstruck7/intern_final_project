@@ -1,15 +1,9 @@
 import { useEffect, useState } from 'react'
-import { ErrorState, EmptyState, LoadingState } from '../../shared/components/AsyncStates'
+import { ErrorState, LoadingState } from '../../shared/components/AsyncStates'
 import { useAuth } from '../auth/AuthProvider'
 import { getDashboardSummary } from './dashboardApi'
-import { DashboardMetricCard } from './DashboardMetricCard'
-import type { DashboardSummary } from './dashboard.types'
-
-type DashboardState =
-  | { status: 'loading' }
-  | { status: 'unavailable' }
-  | { status: 'error' }
-  | { status: 'ready'; data: DashboardSummary }
+import type { BackendSummary } from './dashboardApi'
+type DashboardState = { status: 'loading' } | { status: 'error' } | { status: 'ready'; data: BackendSummary }
 
 export function DashboardPage() {
   const { session } = useAuth()
@@ -20,15 +14,14 @@ export function DashboardPage() {
     if (!session) return
     setState({ status: 'loading' })
     getDashboardSummary(session.accessToken)
-      .then((result) => active && setState(result.status === 'unavailable' ? { status: 'unavailable' } : { status: 'ready', data: result.data }))
+      .then((data) => active && setState({ status: 'ready', data }))
       .catch(() => active && setState({ status: 'error' }))
     return () => { active = false }
   }, [session])
 
   return <section className="dashboard-page"><div className="page-heading"><div><p className="eyebrow">A1 Platform Foundation</p><h1>Dashboard</h1></div></div>
     {state.status === 'loading' && <LoadingState label="Loading dashboard…" />}
-    {state.status === 'unavailable' && <EmptyState title="Dashboard data is not configured" description="NEEDS API CONTRACT: approve the dashboard response and configure VITE_DASHBOARD_SUMMARY_PATH. No salon statistics are displayed until then." />}
     {state.status === 'error' && <ErrorState title="Dashboard data could not be loaded" description="Please try again. If this continues, verify the shared API configuration and authorization." />}
-    {state.status === 'ready' && (state.data.sections.length ? <div className="dashboard-sections">{state.data.sections.map((section) => <section key={section.id}><h2>{section.title}</h2><div className="dashboard-grid">{section.metrics.map((metric) => <DashboardMetricCard key={metric.id} metric={metric} />)}</div></section>)}</div> : <EmptyState title="No dashboard data is available" description="The shared API returned no dashboard sections for your current access." />)}
+    {state.status === 'ready' && <div className="dashboard-grid"><article className="metric-card"><p>Recorded payment revenue</p><strong>{state.data.paymentRevenueMinor}</strong></article><article className="metric-card"><p>Payments</p><strong>{state.data.paymentCount}</strong></article><article className="metric-card"><p>Appointments</p><strong>{state.data.appointmentCount}</strong></article><article className="metric-card"><p>Low-stock products</p><strong>{state.data.lowStockCount}</strong></article></div>}
   </section>
 }

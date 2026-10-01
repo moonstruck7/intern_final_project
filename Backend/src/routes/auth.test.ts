@@ -26,7 +26,7 @@ test('rejects a malformed access token', async () => {
 test('allows a valid access token to read the authenticated context', async () => {
   const response = await request('/me', await createAccessToken({ userId: 'test-user', role: 'staff' }))
   assert.equal(response.status, 200)
-  assert.deepEqual(await response.json(), { user: { userId: 'test-user', role: 'staff' } })
+  assert.deepEqual(await response.json(), { user: { userId: 'test-user', id: 'test-user', role: 'staff', permissions: ['dashboard.read'] } })
 })
 
 test('enforces centralized permissions', async () => {

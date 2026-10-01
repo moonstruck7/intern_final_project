@@ -1,14 +1,4 @@
-import { ContractUnavailableSection } from '../../shared/components/ContractUnavailableSection'
-import { getBillingContractRequirement } from './billingApi'
+import { ApiListPage } from '../../shared/components/ApiListPage'
+import { ApiMutationPanel } from '../../shared/components/ApiMutationPanel'
 
-export function BillingPage() {
-  return <section className="billing-page">
-    <div className="page-heading"><div><p className="eyebrow">A4 Billing and POS</p><h1>Billing</h1><p className="muted">Billing will use approved appointment data to resolve its canonical customer, services, and staff attribution before creating invoices and recording payments.</p></div></div>
-    <div className="catalog-grid">
-      <ContractUnavailableSection eyebrow="A4 Billing and POS" title="Billing and POS" description="Start a bill from a valid A3 appointment once the approved billing preview, calculation, and invoice-creation contracts are available." missing={getBillingContractRequirement('pos').missing} />
-      <ContractUnavailableSection eyebrow="A4 Billing and POS" title="Invoices" description="Invoices and line items will be generated from approved integrated data; invoice numbers, statuses, documents, and totals are not assumed." missing={getBillingContractRequirement('invoices').missing} />
-      <ContractUnavailableSection eyebrow="A4 Billing and POS" title="Payments" description="Payments will be recorded against approved invoices once payment methods, transaction rules, and authorization are defined." missing={getBillingContractRequirement('payments').missing} />
-      <ContractUnavailableSection eyebrow="A4 Billing and POS" title="Billing history" description="Customer and appointment billing history will come from shared API data, not a separate A4 history dataset." missing={getBillingContractRequirement('history').missing} />
-    </div>
-  </section>
-}
+export function BillingPage() { return <><ApiListPage eyebrow="A4 Billing and POS" title="Invoices" path="/api/v1/billing/invoices" /><ApiMutationPanel title="Create invoice" path="/api/v1/billing/invoices" fields={[{ name: 'appointmentId', label: 'Appointment ID', required: true }]} /><ApiMutationPanel title="Record payment" path="/api/v1/billing/invoices/:invoiceId/payments" fields={[{ name: 'invoiceId', label: 'Invoice ID', required: true, route: true }, { name: 'amountMinor', label: 'Amount (minor units)', required: true, type: 'number' }, { name: 'method', label: 'Method: cash, card, upi, or other', required: true }]} /></> }

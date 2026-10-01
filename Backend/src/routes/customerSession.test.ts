@@ -16,11 +16,16 @@ async function request(path: string, method = 'GET', token?: string, body?: unkn
 
 test('customer contract routes require authentication', async () => {
   assert.equal((await request('/me/appointments', 'POST', undefined, {})).status, 401)
+  assert.equal((await request('/me/invoices')).status, 401)
+  assert.equal((await request('/me/notifications')).status, 401)
 })
 
 test('non-customer users cannot use customer booking', async () => {
   const token = await createAccessToken({ userId: 'test-owner', role: 'owner' })
   assert.equal((await request('/me/appointments', 'POST', token, {})).status, 403)
+  assert.equal((await request('/me/invoices', 'GET', token)).status, 403)
+  assert.equal((await request('/me/notifications', 'GET', token)).status, 403)
+  assert.equal((await request('/me/notifications/not-an-id/read', 'PATCH', token)).status, 403)
 })
 
 test('malformed customer token subjects are safely rejected before a User lookup', async () => {

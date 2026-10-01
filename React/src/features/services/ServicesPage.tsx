@@ -1,13 +1,4 @@
-import { ContractUnavailableSection } from '../../shared/components/ContractUnavailableSection'
-import { getCatalogContractRequirement } from './serviceCatalogApi'
+import { ApiListPage } from '../../shared/components/ApiListPage'
+import { ApiMutationPanel } from '../../shared/components/ApiMutationPanel'
 
-export function ServicesPage() {
-  return <section className="services-page">
-    <div className="page-heading"><div><p className="eyebrow">B1 Services</p><h1>Service catalog</h1><p className="muted">This is the canonical management boundary for service data that A3 Appointments and A4 Billing will consume from the shared API.</p></div></div>
-    <div className="catalog-grid">
-      <ContractUnavailableSection eyebrow="B1 Service catalog" title="Services" description="Manage the shared service records used in appointment selection and billable line items." missing={getCatalogContractRequirement('services').missing} />
-      <ContractUnavailableSection eyebrow="B1 Service catalog" title="Service categories" description="Manage the categories services belong to once the approved category relationship is available." missing={getCatalogContractRequirement('categories').missing} />
-      <ContractUnavailableSection eyebrow="B1 Service catalog" title="Packages" description="Package functionality is intentionally deferred because approved package business rules are not available." missing={getCatalogContractRequirement('packages').missing} />
-    </div>
-  </section>
-}
+export function ServicesPage() { return <><ApiListPage eyebrow="B1 Services" title="Services" path="/api/v1/services" /><ApiListPage eyebrow="B1 Categories" title="Service categories" path="/api/v1/service-categories" /><ApiListPage eyebrow="B1 Packages" title="Packages" path="/api/v1/packages" /><ApiMutationPanel title="Create service category" path="/api/v1/service-categories" fields={[{ name: 'name', label: 'Name', required: true }]} /><ApiMutationPanel title="Create service" path="/api/v1/services" fields={[{ name: 'name', label: 'Name', required: true }, { name: 'categoryId', label: 'Category ID', required: true }, { name: 'price', label: 'Price', required: true, type: 'number' }, { name: 'durationMinutes', label: 'Duration minutes', required: true, type: 'number' }]} /><ApiMutationPanel title="Create package" path="/api/v1/packages" fields={[{ name: 'name', label: 'Name', required: true }]} /></> }

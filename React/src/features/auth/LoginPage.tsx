@@ -21,7 +21,7 @@ export function LoginPage() {
     if (!password) return setMessage('Enter your password.')
     setSubmitting(true); setMessage(undefined)
     try {
-      login(await loginRequest({ identifier, password }))
+      login(await loginRequest({ loginIdentifier: identifier, password }))
       navigate(redirectTarget, { replace: true })
     } catch (error) {
       setMessage(getLoginErrorMessage(error))

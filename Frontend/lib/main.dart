@@ -1,3 +1,5 @@
+// ignore_for_file: unused_element_parameter
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -7,6 +9,8 @@ import 'auth/auth_controller.dart';
 import 'auth/auth_repository.dart';
 import 'auth/session_store.dart';
 import 'screens/login_screen.dart';
+import 'screens/customer_invoices_screen.dart';
+import 'screens/customer_notifications_screen.dart';
 import 'screens/service_catalog_screen.dart';
 import 'screens/my_appointments_screen.dart';
 import 'theme/salon_theme.dart';
@@ -119,66 +123,14 @@ class _InboxScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Inbox'),
-        actions: [
-          TextButton.icon(
-            onPressed: () {},
-            icon: const Icon(Icons.done_all_rounded, size: 16),
-            label: const Text('Mark all read'),
-            style: TextButton.styleFrom(
-              foregroundColor: SalonTheme.cocoa,
-              textStyle: Theme.of(context).textTheme.labelMedium
-                  ?.copyWith(fontWeight: FontWeight.w700),
-            ),
-          ),
-          const SizedBox(width: 8),
-        ],
-      ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
-        children: const [
-          _InboxTile(
-            type: _InboxType.appointment,
-            title: 'Upcoming appointment',
-            message: 'Your Signature Hydrafacial with Emma is on Thu, Sep 5 at 2:30 PM.',
-            timeAgo: '2h ago',
-            isUnread: true,
-          ),
-          SizedBox(height: 10),
-          _InboxTile(
-            type: _InboxType.loyalty,
-            title: 'Loyalty reward unlocked 🎁',
-            message: 'You\'ve earned 50 points from your last visit. You now have 320 pts!',
-            timeAgo: '1d ago',
-            isUnread: true,
-          ),
-          SizedBox(height: 10),
-          _InboxTile(
-            type: _InboxType.promo,
-            title: 'Exclusive offer just for you',
-            message:
-                '20% off your next Bridal Glow Package. Valid until Sep 15.',
-            timeAgo: '3d ago',
-            isUnread: false,
-          ),
-          SizedBox(height: 10),
-          _InboxTile(
-            type: _InboxType.appointment,
-            title: 'Booking confirmed',
-            message: 'Your Signature Haircut with Sarah on Aug 22 at 11:00 AM was confirmed.',
-            timeAgo: '2w ago',
-            isUnread: false,
-          ),
-        ],
-      ),
-    );
+    return const CustomerNotificationsScreen();
   }
 }
 
+// ignore: unused_element
 enum _InboxType { appointment, loyalty, promo }
 
+// ignore: unused_element
 class _InboxTile extends StatelessWidget {
   const _InboxTile({
     required this.type,
@@ -347,7 +299,7 @@ class _ProfileScreen extends StatelessWidget {
                 // ── Settings sections ─────────────────────────────
                 _SettingsSection(
                   title: 'Account',
-                  tiles: const [
+                  tiles: [
                     _SettingsTile(
                       icon: Icons.person_outline_rounded,
                       iconColor: SalonTheme.cocoa,
@@ -356,7 +308,12 @@ class _ProfileScreen extends StatelessWidget {
                     _SettingsTile(
                       icon: Icons.credit_card_outlined,
                       iconColor: Color(0xFF2D7A4F),
-                      title: 'Payment Methods',
+                      title: 'Invoice history',
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const CustomerInvoicesScreen(),
+                        ),
+                      ),
                     ),
                     _SettingsTile(
                       icon: Icons.location_on_outlined,
@@ -626,12 +583,14 @@ class _SettingsTile extends StatelessWidget {
     required this.icon,
     required this.iconColor,
     required this.title,
+    this.onTap,
   }) : trailing = null;
 
   final IconData icon;
   final Color iconColor;
   final String title;
   final Widget? trailing;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -658,7 +617,7 @@ class _SettingsTile extends StatelessWidget {
             color: Theme.of(context).colorScheme.onSurfaceVariant,
             size: 20,
           ),
-      onTap: () {},
+      onTap: onTap,
     );
   }
 }

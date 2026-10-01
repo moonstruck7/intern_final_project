@@ -1,8 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type PropsWithChildren } from 'react'
-import { env } from '../../shared/config/env'
 import { setUnauthorizedHandler } from '../../shared/api/client'
 import { isAllowed, type AccessRequirement } from '../../shared/auth/access'
 import type { Session, SessionUser } from '../../types/auth'
+import { currentUser, logoutRequest, refresh } from './authApi'
 
 type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated'
 type SignOutReason = 'manual' | 'expired'
@@ -24,7 +24,7 @@ function readStoredSession(): Session | undefined {
   try {
     const raw = sessionStorage.getItem(SESSION_KEY)
     const session = raw ? JSON.parse(raw) as Session : undefined
-    if (!session || typeof session.accessToken !== 'string' || !session.user || typeof session.user.id !== 'string' || typeof session.user.displayName !== 'string' || !Array.isArray(session.user.permissions)) {
+    if (!session || typeof session.accessToken !== 'string' || typeof session.refreshToken !== 'string' || !session.user || typeof session.user.id !== 'string' || !Array.isArray(session.user.permissions)) {
       sessionStorage.removeItem(SESSION_KEY)
       return undefined
     }
@@ -42,8 +42,11 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
   useEffect(() => {
     const restored = readStoredSession()
-    setSession(restored)
-    setStatus(restored ? 'authenticated' : 'unauthenticated')
+    if (!restored) { setStatus('unauthenticated'); return }
+    refresh(restored.refreshToken).then(async (next) => {
+      const user = await currentUser(next.accessToken)
+      login({ ...next, user: { ...next.user, ...user, displayName: next.user.displayName || next.user.loginIdentifier || 'Staff user' } })
+    }).catch(() => { sessionStorage.removeItem(SESSION_KEY); setStatus('unauthenticated') })
   }, [])
 
   const login = useCallback((nextSession: Session) => {
@@ -53,15 +56,14 @@ export function AuthProvider({ children }: PropsWithChildren) {
     setLastSignOutReason(undefined)
   }, [])
   const logout = useCallback((reason: SignOutReason = 'manual') => {
+    const current = readStoredSession()
+    if (reason === 'manual' && current) void logoutRequest(current.refreshToken).catch(() => undefined)
     sessionStorage.removeItem(SESSION_KEY)
     setSession(undefined)
     setStatus('unauthenticated')
     setLastSignOutReason(reason)
   }, [])
-  const startDevelopmentSession = useCallback(() => {
-    if (!env.enableDevSession) return
-    login({ accessToken: 'development-session-not-a-production-token', user: { id: 'development-user', displayName: 'Development session', permissions: ['*'] } })
-  }, [login])
+  const startDevelopmentSession = useCallback(() => undefined, [])
   const can = useCallback((requirement?: AccessRequirement) => {
     if (!session) return false
     if (session.user.permissions.includes('*')) return true
