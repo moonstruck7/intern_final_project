@@ -1,5 +1,35 @@
 # Salon SaaS API Foundation
 
+## Local end-to-end authentication
+
+The API listens on `http://localhost:4000` by default and serves routes under
+`/api/v1`. A local MongoDB instance is required for sign-in because User and
+refresh-session records are persistent.
+
+```bash
+cd Backend
+cp .env.example .env
+# Edit .env: set JWT_ACCESS_SECRET, MONGODB_URI, CORS_ORIGIN, and the PROVISION_USER_* values.
+npm install
+npm run provision:user
+npm run dev
+```
+
+For the provisioning command, set `NODE_ENV=development`,
+`ALLOW_LOCAL_USER_PROVISIONING=true`, `PROVISION_USER_LOGIN`,
+`PROVISION_USER_PASSWORD`, and optionally `PROVISION_USER_ROLE` (`owner` by
+default). The command is disabled in production, bcrypt-hashes the password,
+never prints it, and is idempotent: an existing login identifier is left
+unchanged. Do not commit `.env` or share its values.
+
+Confirm the database state with `GET http://localhost:4000/api/v1/health`.
+Only `dependencies.database: "connected"` is ready for authentication; the API
+reports `unavailable` honestly when MongoDB cannot be reached.
+
+Set `CORS_ORIGIN` to the exact React origin Vite prints (normally
+`http://localhost:5173`; use `http://localhost:5175` if that is the selected
+local port). The React `VITE_API_BASE_URL` remains `http://localhost:4000`.
+
 `Backend/` contains the initial shared API foundation for the Salon SaaS
 platform. It is a Node.js, TypeScript, and Express application intended to be
 consumed by the React operations portal and Flutter customer application.

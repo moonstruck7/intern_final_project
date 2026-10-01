@@ -1,3 +1,22 @@
+# React operations portal
+
+## Local sign-in
+
+Start MongoDB and the Backend first. In a separate terminal:
+
+```bash
+cd React
+cp .env.example .env.local
+npm install
+npm run dev
+```
+
+`VITE_API_BASE_URL` must be `http://localhost:4000` unless the Backend `PORT`
+was changed. Set Backend `CORS_ORIGIN` to that exact Vite origin. Open the exact Vite URL shown by the command (normally
+`http://localhost:5173/login`; use `5175` if Vite selected that alternate port).
+Sign in with `PROVISION_USER_LOGIN` and `PROVISION_USER_PASSWORD` from your
+uncommitted Backend `.env`; no credentials are embedded in this repository.
+
 # You are working on a production-style internship project called:
 
 SALON SaaS PLATFORM

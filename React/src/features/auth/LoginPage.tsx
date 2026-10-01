@@ -30,7 +30,7 @@ export function LoginPage() {
 
   return <main className="auth-page"><section className="auth-card">
     <p className="eyebrow">Salon SaaS Platform</p><h1>Sign in to the staff portal</h1>
-    <p className="muted">Authentication will use the shared backend when its approved contract is configured.</p>
+    <p className="muted">Use a locally provisioned staff, manager, or owner account.</p>
     {lastSignOutReason === 'expired' && <p className="form-error" role="alert">Your session has ended. Please sign in again.</p>}
     <form onSubmit={onSubmit} noValidate>
       <label htmlFor="identifier">Account identifier<input id="identifier" name="identifier" autoComplete="username" disabled={submitting} aria-invalid={Boolean(message)} /></label>
