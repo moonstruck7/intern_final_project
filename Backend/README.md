@@ -22,6 +22,23 @@ default). The command is disabled in production, bcrypt-hashes the password,
 never prints it, and is idempotent: an existing login identifier is left
 unchanged. Do not commit `.env` or share its values.
 
+### Future initial-owner procedure
+
+1. Configure a real MongoDB URI in `Backend/.env`.
+2. Set `JWT_ACCESS_SECRET`, `ALLOW_LOCAL_USER_PROVISIONING=true`,
+   `PROVISION_USER_LOGIN`, `PROVISION_USER_PASSWORD`, and
+   `PROVISION_USER_ROLE=owner` (with `NODE_ENV=development`).
+3. Run: `npm run provision:user`
+4. Start Backend: `npm run dev`
+5. Start React: `npm run dev`
+6. Open the React login page.
+7. Sign in using the provisioned owner credentials.
+
+For the intended local owner, set `PROVISION_USER_LOGIN=owner@salon.local`
+and `PROVISION_USER_ROLE=owner`; supply the intended password only through the
+uncommitted environment variable. The script reports clearly when MongoDB is
+missing or unreachable and does not create a fallback/mock user.
+
 Confirm the database state with `GET http://localhost:4000/api/v1/health`.
 Only `dependencies.database: "connected"` is ready for authentication; the API
 reports `unavailable` honestly when MongoDB cannot be reached.
