@@ -2,38 +2,39 @@ import { NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../features/auth/AuthProvider'
 import type { AccessRequirement } from '../shared/auth/access'
 
-interface NavigationItem { to: string; label: string; access?: AccessRequirement }
+interface NavigationItem { to: string; label: string; icon: string; group: string; access?: AccessRequirement }
 
 const navigation: NavigationItem[] = [
-  { to: '/dashboard', label: 'Dashboard' },
-  { to: '/customers', label: 'Customers' },
-  { to: '/appointments', label: 'Appointments' },
-  { to: '/billing', label: 'Billing' },
-  { to: '/services', label: 'Services' },
-  { to: '/staff', label: 'Staff' },
-  { to: '/inventory', label: 'Inventory' },
-  { to: '/reports', label: 'Reports' },
+  { to: '/dashboard', label: 'Dashboard', icon: '◫', group: 'Overview' },
+  { to: '/customers', label: 'Customers', icon: '◎', group: 'Customer experience' },
+  { to: '/appointments', label: 'Appointments', icon: '□', group: 'Customer experience' },
+  { to: '/services', label: 'Services', icon: '✦', group: 'Business' },
+  { to: '/staff', label: 'Team', icon: '◌', group: 'Business' },
+  { to: '/billing', label: 'Billing', icon: '⌁', group: 'Operations' },
+  { to: '/inventory', label: 'Inventory', icon: '▤', group: 'Operations' },
+  { to: '/reports', label: 'Reports', icon: '◔', group: 'Insights' },
 ]
 
 export function AppLayout() {
   const { user, logout, can } = useAuth()
   const visibleNavigation = navigation.filter((item) => can(item.access))
+  const groups = [...new Set(visibleNavigation.map((item) => item.group))]
 
   return (
     <div className="app-shell">
       <aside className="sidebar" aria-label="Primary navigation">
-        <NavLink className="brand" to="/dashboard">Salon SaaS</NavLink>
+        <NavLink className="brand" to="/dashboard"><span className="brand-mark">S</span><span><strong>Salon</strong><small>OPERATIONS</small></span></NavLink>
         <nav>
-          {visibleNavigation.map((item) => (
-            <NavLink key={item.to} className="nav-link" to={item.to}>{item.label}</NavLink>
-          ))}
+          {groups.map((group) => <div className="nav-group" key={group}><p>{group}</p>{visibleNavigation.filter((item) => item.group === group).map((item) => (
+            <NavLink key={item.to} className="nav-link" to={item.to}><span aria-hidden="true">{item.icon}</span>{item.label}</NavLink>
+          ))}</div>)}
         </nav>
-        <p className="sidebar-footer">Salon operations, all in one place.</p>
+        <div className="sidebar-footer"><span className="sidebar-status" aria-hidden="true" />Salon workspace</div>
       </aside>
       <div className="main-area">
         <header className="topbar">
-          <div><p className="eyebrow">Salon operations</p><p className="user-name">Your workspace</p></div>
-          <div className="topbar-account"><span className="account-avatar" aria-hidden="true">{user?.displayName?.slice(0, 1).toUpperCase() || 'U'}</span><span className="user-name">{user?.displayName}</span><button className="button button-secondary" type="button" onClick={() => logout()}>Sign out</button></div>
+          <div><p className="eyebrow">Salon operations</p><p className="user-name">A calm, capable day starts here.</p></div>
+          <div className="topbar-account"><span className="account-avatar" aria-hidden="true">{user?.displayName?.slice(0, 1).toUpperCase() || 'U'}</span><span className="account-copy"><strong>{user?.displayName}</strong><small>Salon team</small></span><button className="button button-quiet sign-out" type="button" onClick={() => logout()}>Sign out</button></div>
         </header>
         <main className="page-content"><Outlet /></main>
       </div>
