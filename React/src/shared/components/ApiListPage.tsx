@@ -36,8 +36,8 @@ export function ApiListPage({ eyebrow, title, path, description, emptyTitle, emp
   const load = useCallback(() => {
     if (!session) return
     setState({ loading: true })
-    apiRequest<{ data: RecordValue[] }>({ path, method: 'GET', token: session.accessToken })
-      .then((result) => setState({ loading: false, data: result.data }))
+    apiRequest<{ data?: unknown }>({ path, method: 'GET', token: session.accessToken })
+      .then((result) => setState(Array.isArray(result.data) ? { loading: false, data: result.data as RecordValue[] } : { loading: false, error: 'This list is not available right now.' }))
       .catch(() => setState({ loading: false, error: 'Please check your connection and try again.' }))
   }, [path, session])
 
