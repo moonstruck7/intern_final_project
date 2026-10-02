@@ -5,14 +5,14 @@ import type { AccessRequirement } from '../shared/auth/access'
 interface NavigationItem { to: string; label: string; icon: string; group: string; access?: AccessRequirement }
 
 const navigation: NavigationItem[] = [
-  { to: '/dashboard', label: 'Dashboard', icon: '◫', group: 'Overview' },
-  { to: '/customers', label: 'Customers', icon: '◎', group: 'Customer experience' },
-  { to: '/appointments', label: 'Appointments', icon: '□', group: 'Customer experience' },
-  { to: '/services', label: 'Services', icon: '✦', group: 'Business' },
-  { to: '/staff', label: 'Team', icon: '◌', group: 'Business' },
-  { to: '/billing', label: 'Billing', icon: '⌁', group: 'Operations' },
-  { to: '/inventory', label: 'Inventory', icon: '▤', group: 'Operations' },
-  { to: '/reports', label: 'Reports', icon: '◔', group: 'Insights' },
+  { to: '/dashboard', label: 'Dashboard', icon: '◫', group: 'Overview', access: { permissions: ['dashboard.read'] } },
+  { to: '/customers', label: 'Customers', icon: '◎', group: 'Customer experience', access: { permissions: ['customers.manage'] } },
+  { to: '/appointments', label: 'Appointments', icon: '□', group: 'Customer experience', access: { permissions: ['appointments.manage'] } },
+  { to: '/services', label: 'Services', icon: '✦', group: 'Business', access: { permissions: ['services.manage'] } },
+  { to: '/staff', label: 'Team', icon: '◌', group: 'Business', access: { permissions: ['staff.manage'] } },
+  { to: '/billing', label: 'Billing', icon: '⌁', group: 'Operations', access: { permissions: ['platform.manage'] } },
+  { to: '/inventory', label: 'Inventory', icon: '▤', group: 'Operations', access: { permissions: ['platform.manage'] } },
+  { to: '/reports', label: 'Reports', icon: '◔', group: 'Insights', access: { permissions: ['reports.read'] } },
 ]
 
 export function AppLayout() {

@@ -29,7 +29,10 @@ export async function apiRequest<T>({ path, body, token, headers, ...options }: 
     throw new ApiError('Unable to reach the API. Check your connection and API configuration.')
   }
 
-  const payload = await response.json().catch(() => undefined)
+  // Mutations may legitimately reply with 201/204 and no JSON body. Parsing
+  // unconditionally here turned successful saves into client-side failures.
+  const responseText = await response.text()
+  const payload = responseText ? (() => { try { return JSON.parse(responseText) } catch { return undefined } })() : undefined
   if (!response.ok) {
     // Login requests have no token; only an authenticated request can expire the local session.
     if (response.status === 401 && token) unauthorizedHandler?.()

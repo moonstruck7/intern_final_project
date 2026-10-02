@@ -24,6 +24,7 @@ export function ApiMutationPanel({ title, path, fields, method = 'POST', onSucce
       await apiRequest({ path: resolvedPath, method, token: session.accessToken, body })
       event.currentTarget.reset()
       setSuccess('Saved successfully.')
+      window.dispatchEvent(new CustomEvent('salon:data-mutated', { detail: { path } }))
       onSuccess?.()
     } catch (cause) {
       setError(cause instanceof ApiError && cause.status === 400 ? 'Please review the information and try again.' : 'We couldn’t save your changes. Please try again.')

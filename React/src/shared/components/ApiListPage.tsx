@@ -42,6 +42,11 @@ export function ApiListPage({ eyebrow, title, path, description, emptyTitle, emp
   }, [path, session])
 
   useEffect(() => { load() }, [load])
+  useEffect(() => {
+    const refresh = () => load()
+    window.addEventListener('salon:data-mutated', refresh)
+    return () => window.removeEventListener('salon:data-mutated', refresh)
+  }, [load])
   const records = state.data ?? []
   const [query, setQuery] = useState('')
   const visibleRecords = useMemo(() => records.filter((record) => Object.values(record).some((value) => displayValue(value).toLowerCase().includes(query.trim().toLowerCase()))), [query, records])

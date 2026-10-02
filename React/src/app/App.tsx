@@ -20,26 +20,28 @@ export function App() {
       <Route element={<ProtectedRoute />}>
         <Route element={<AppLayout />}>
           <Route index element={<Navigate to="/dashboard" replace />} />
-          <Route path="dashboard" element={<DashboardPage />} />
-          <Route element={<RouteAccessBoundary />}>
+          <Route element={<RouteAccessBoundary access={{ permissions: ['dashboard.read'] }} />}>
+            <Route path="dashboard" element={<DashboardPage />} />
+          </Route>
+          <Route element={<RouteAccessBoundary access={{ permissions: ['services.manage'] }} />}>
             <Route path="services" element={<ServicesPage />} />
           </Route>
-          <Route element={<RouteAccessBoundary />}>
+          <Route element={<RouteAccessBoundary access={{ permissions: ['customers.manage'] }} />}>
             <Route path="customers" element={<CustomersPage />} />
           </Route>
-          <Route element={<RouteAccessBoundary />}>
+          <Route element={<RouteAccessBoundary access={{ permissions: ['staff.manage'] }} />}>
             <Route path="staff" element={<StaffPage />} />
           </Route>
-          <Route element={<RouteAccessBoundary />}>
+          <Route element={<RouteAccessBoundary access={{ permissions: ['appointments.manage'] }} />}>
             <Route path="appointments" element={<AppointmentsPage />} />
           </Route>
-          <Route element={<RouteAccessBoundary />}>
+          <Route element={<RouteAccessBoundary access={{ permissions: ['platform.manage'] }} />}>
             <Route path="billing" element={<BillingPage />} />
           </Route>
-          <Route element={<RouteAccessBoundary />}>
+          <Route element={<RouteAccessBoundary access={{ permissions: ['platform.manage'] }} />}>
             <Route path="inventory" element={<InventoryPage />} />
           </Route>
-          <Route element={<RouteAccessBoundary />}>
+          <Route element={<RouteAccessBoundary access={{ permissions: ['reports.read'] }} />}>
             <Route path="reports" element={<ReportsPage />} />
           </Route>
         </Route>
