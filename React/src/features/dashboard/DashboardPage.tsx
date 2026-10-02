@@ -19,9 +19,9 @@ export function DashboardPage() {
     return () => { active = false }
   }, [session])
 
-  return <section className="dashboard-page"><div className="page-heading"><div><p className="eyebrow">A1 Platform Foundation</p><h1>Dashboard</h1></div></div>
+  return <section className="dashboard-page"><div className="page-heading"><div><p className="eyebrow">Salon overview</p><h1>Good to see you</h1><p className="page-intro">Keep an eye on the activity that matters most to your salon today.</p></div></div>
     {state.status === 'loading' && <LoadingState label="Loading dashboard…" />}
-    {state.status === 'error' && <ErrorState title="Dashboard data could not be loaded" description="Please try again. If this continues, verify the shared API configuration and authorization." />}
-    {state.status === 'ready' && <div className="dashboard-grid"><article className="metric-card"><p>Recorded payment revenue</p><strong>{state.data.paymentRevenueMinor}</strong></article><article className="metric-card"><p>Payments</p><strong>{state.data.paymentCount}</strong></article><article className="metric-card"><p>Appointments</p><strong>{state.data.appointmentCount}</strong></article><article className="metric-card"><p>Low-stock products</p><strong>{state.data.lowStockCount}</strong></article></div>}
+    {state.status === 'error' && <ErrorState title="Your overview is temporarily unavailable" description="Please refresh the page and try again." />}
+    {state.status === 'ready' && <div className="dashboard-sections"><div className="dashboard-grid"><article className="metric-card"><p>Recorded payment total</p><strong>{state.data.paymentRevenueMinor.toLocaleString()}</strong></article><article className="metric-card"><p>Payments received</p><strong>{state.data.paymentCount.toLocaleString()}</strong></article><article className="metric-card"><p>Appointments</p><strong>{state.data.appointmentCount.toLocaleString()}</strong></article><article className="metric-card"><p>Low-stock products</p><strong>{state.data.lowStockCount.toLocaleString()}</strong></article></div><p className="muted">Your dashboard updates as salon activity is recorded.</p></div>}
   </section>
 }

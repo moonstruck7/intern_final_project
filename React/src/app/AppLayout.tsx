@@ -28,11 +28,12 @@ export function AppLayout() {
             <NavLink key={item.to} className="nav-link" to={item.to}>{item.label}</NavLink>
           ))}
         </nav>
+        <p className="sidebar-footer">Salon operations, all in one place.</p>
       </aside>
       <div className="main-area">
         <header className="topbar">
-          <div><p className="eyebrow">Staff operations</p><p className="user-name">{user?.displayName}</p></div>
-          <button className="button button-secondary" type="button" onClick={() => logout()}>Sign out</button>
+          <div><p className="eyebrow">Salon operations</p><p className="user-name">Your workspace</p></div>
+          <div className="topbar-account"><span className="account-avatar" aria-hidden="true">{user?.displayName?.slice(0, 1).toUpperCase() || 'U'}</span><span className="user-name">{user?.displayName}</span><button className="button button-secondary" type="button" onClick={() => logout()}>Sign out</button></div>
         </header>
         <main className="page-content"><Outlet /></main>
       </div>
