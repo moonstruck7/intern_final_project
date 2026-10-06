@@ -1,8 +1,204 @@
-import {Router}from'express';import{requireAuthentication,requirePermissions}from'../middleware/auth.js';import{Invoice,Payment}from'../billing/model.js';import{Appointment}from'../appointments/model.js';import{Product,StockTransaction}from'../inventory/model.js';import{Customer,Service,Staff}from'../domains/models.js';import{Campaign,Notification}from'./model.js';import{z}from'zod';import{HttpError}from'../shared/errors.js'
-export const insightsRouter=Router();insightsRouter.use(requireAuthentication)
-insightsRouter.get('/analytics/summary',requirePermissions('reports.read'),async(_r,s,n)=>{try{const[revenue,appointments,lowStock]=await Promise.all([Payment.aggregate([{$group:{_id:null,total:{$sum:'$amountMinor'},count:{$sum:1}}}]),Appointment.countDocuments(),Product.countDocuments({$expr:{$lte:['$currentStock','$lowStockThreshold']}})]);s.json({data:{paymentRevenueMinor:revenue[0]?.total??0,paymentCount:revenue[0]?.count??0,appointmentCount:appointments,lowStockCount:lowStock}})}catch(e){n(e)}})
-insightsRouter.get('/reports/invoices',requirePermissions('reports.read'),async(_r,s,n)=>{try{s.json({data:await Invoice.aggregate([{$group:{_id:'$status',count:{$sum:1},totalMinor:{$sum:'$totalMinor'}}}])})}catch(e){n(e)}})
-insightsRouter.get('/reports/operations',requirePermissions('reports.read'),async(_r,s,n)=>{try{const[customers,services,staff,appointments,stock]=await Promise.all([Customer.countDocuments(),Service.countDocuments(),Staff.countDocuments(),Appointment.aggregate([{$group:{_id:'$status',count:{$sum:1}}}]),StockTransaction.aggregate([{$group:{_id:'$type',quantity:{$sum:'$quantity'}}}])]);s.json({data:{customers,services,staff,appointments,stock}})}catch(e){n(e)}})
-insightsRouter.get('/insights/trends',requirePermissions('reports.read'),async(r,s,n)=>{try{const q=z.object({startDate:z.string().date().optional(),endDate:z.string().date().optional()}).parse(r.query);if(q.startDate&&q.endDate&&q.startDate>q.endDate)throw new HttpError(400,'VALIDATION_ERROR','Invalid date range.');const f:any=q.startDate||q.endDate?{date:{$gte:q.startDate,$lte:q.endDate}}:{};const [appointments,services,lowStock]=await Promise.all([Appointment.aggregate([{$match:f},{$group:{_id:'$date',count:{$sum:1}}},{$sort:{_id:1}}]),Appointment.aggregate([{$match:f},{$group:{_id:'$serviceId',count:{$sum:1}}}]),Product.find({$expr:{$lte:['$currentStock','$lowStockThreshold']}}).select('name currentStock lowStockThreshold')]);s.json({data:{appointments,serviceDemand:services,lowStock}})}catch(e){n(e)}})
-insightsRouter.post('/marketing/campaigns',requirePermissions('marketing.manage'),async(r,s,n)=>{try{s.status(201).json({data:await Campaign.create(z.object({name:z.string().min(1),audienceNote:z.string().optional()}).parse(r.body))})}catch(e){n(e)}})
-insightsRouter.get('/notifications',requirePermissions('notifications.manage'),async(_r,s,n)=>{try{s.json({data:await Notification.find().sort({_id:-1}).limit(100)})}catch(e){n(e)}});insightsRouter.patch('/notifications/:id/read',requirePermissions('notifications.manage'),async(r,s,n)=>{try{const notificationId=String(r.params.id);if(!/^[a-f\d]{24}$/i.test(notificationId))throw new HttpError(400,'VALIDATION_ERROR','Invalid notification identifier.');const d=await Notification.findByIdAndUpdate(notificationId,{readAt:new Date()},{new:true});if(!d)throw new HttpError(404,'NOT_FOUND','Notification not found.');s.json({data:d})}catch(e){n(e)}})
+import { Router } from 'express'
+import { isValidObjectId } from 'mongoose'
+import { z } from 'zod'
+import { requireAuthentication, requirePermissions } from '../middleware/auth.js'
+import { Invoice } from '../billing/model.js'
+import { Appointment } from '../appointments/model.js'
+import { Product, StockTransaction } from '../inventory/model.js'
+import { Customer, Service, Staff } from '../domains/models.js'
+import { Campaign, Notification } from './model.js'
+import { HttpError } from '../shared/errors.js'
+
+export const insightsRouter = Router()
+insightsRouter.use(requireAuthentication)
+
+const date = z.string().date()
+
+const campaignSchema = z.object({
+  name: z.string().trim().min(1),
+  status: z.enum(['draft', 'active', 'archived']).optional(),
+  audienceNote: z.string().trim().optional(),
+})
+
+const notificationSchema = z.object({
+  title: z.string().trim().min(1),
+  body: z.string().trim().min(1),
+  recipientUserId: z.string().regex(/^[a-f\d]{24}$/i).optional(),
+  referenceType: z.string().trim().optional(),
+  referenceId: z.string().regex(/^[a-f\d]{24}$/i).optional(),
+})
+
+insightsRouter.get('/analytics/summary', requirePermissions('reports.read'), async (_request, response, next) => {
+  try {
+    const [invoiceAgg, appointmentCount, lowStockCount] = await Promise.all([
+      Invoice.aggregate([
+        {
+          $group: {
+            _id: null,
+            totalBilledMinor: { $sum: '$totalMinor' },
+            invoiceCount: { $sum: 1 },
+          },
+        },
+      ]),
+      Appointment.countDocuments(),
+      Product.countDocuments({ $expr: { $lte: ['$currentStock', '$lowStockThreshold'] } }),
+    ])
+
+    const totalBilledMinor = invoiceAgg[0]?.totalBilledMinor ?? 0
+    const invoiceCount = invoiceAgg[0]?.invoiceCount ?? 0
+
+    response.json({
+      data: {
+        totalBilledMinor,
+        invoiceCount,
+        paymentRevenueMinor: totalBilledMinor,
+        paymentCount: invoiceCount,
+        appointmentCount,
+        lowStockCount,
+      },
+    })
+  } catch (error) {
+    next(error)
+  }
+})
+
+insightsRouter.get('/reports/invoices', requirePermissions('reports.read'), async (_request, response, next) => {
+  try {
+    const data = await Invoice.aggregate([
+      {
+        $group: {
+          _id: '$status',
+          count: { $sum: 1 },
+          totalMinor: { $sum: '$totalMinor' },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ])
+    response.json({ data })
+  } catch (error) {
+    next(error)
+  }
+})
+
+insightsRouter.get('/reports/operations', requirePermissions('reports.read'), async (_request, response, next) => {
+  try {
+    const [customers, services, staff, appointments, stock] = await Promise.all([
+      Customer.countDocuments(),
+      Service.countDocuments(),
+      Staff.countDocuments(),
+      Appointment.aggregate([
+        { $group: { _id: '$status', count: { $sum: 1 } } },
+        { $sort: { _id: 1 } },
+      ]),
+      StockTransaction.aggregate([
+        { $group: { _id: '$type', quantity: { $sum: '$quantity' } } },
+        { $sort: { _id: 1 } },
+      ]),
+    ])
+    response.json({ data: { customers, services, staff, appointments, stock } })
+  } catch (error) {
+    next(error)
+  }
+})
+
+insightsRouter.get('/insights/trends', requirePermissions('reports.read'), async (request, response, next) => {
+  try {
+    const query = z.object({
+      startDate: date.optional(),
+      endDate: date.optional(),
+    }).parse(request.query)
+
+    if (query.startDate && query.endDate && query.startDate > query.endDate) {
+      throw new HttpError(400, 'VALIDATION_ERROR', 'Invalid date range: startDate must be before or equal to endDate.')
+    }
+
+    const filter: Record<string, unknown> = {}
+    if (query.startDate && query.endDate) {
+      filter.date = { $gte: query.startDate, $lte: query.endDate }
+    } else if (query.startDate) {
+      filter.date = { $gte: query.startDate }
+    } else if (query.endDate) {
+      filter.date = { $lte: query.endDate }
+    }
+
+    const [appointments, serviceDemand, lowStock] = await Promise.all([
+      Appointment.aggregate([
+        { $match: filter },
+        { $group: { _id: '$date', count: { $sum: 1 } } },
+        { $sort: { _id: 1 } },
+      ]),
+      Appointment.aggregate([
+        { $match: filter },
+        { $group: { _id: '$serviceId', count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+        { $limit: 10 },
+      ]),
+      Product.find({ $expr: { $lte: ['$currentStock', '$lowStockThreshold'] } }).select('name sku currentStock lowStockThreshold'),
+    ])
+
+    response.json({ data: { appointments, serviceDemand, lowStock } })
+  } catch (error) {
+    next(error)
+  }
+})
+
+insightsRouter.get('/marketing/campaigns', requirePermissions('marketing.manage'), async (_request, response, next) => {
+  try {
+    const data = await Campaign.find().sort({ createdAt: -1, _id: -1 }).limit(100)
+    response.json({ data })
+  } catch (error) {
+    next(error)
+  }
+})
+
+insightsRouter.post('/marketing/campaigns', requirePermissions('marketing.manage'), async (request, response, next) => {
+  try {
+    const input = campaignSchema.parse(request.body)
+    const data = await Campaign.create(input)
+    response.status(201).json({ data })
+  } catch (error) {
+    next(error)
+  }
+})
+
+insightsRouter.patch('/marketing/campaigns/:id', requirePermissions('marketing.manage'), async (request, response, next) => {
+  try {
+    if (!isValidObjectId(request.params.id)) throw new HttpError(400, 'VALIDATION_ERROR', 'Invalid campaign identifier.')
+    const input = campaignSchema.partial().parse(request.body)
+    const data = await Campaign.findByIdAndUpdate(request.params.id, input, { new: true, runValidators: true })
+    if (!data) throw new HttpError(404, 'NOT_FOUND', 'Campaign not found.')
+    response.json({ data })
+  } catch (error) {
+    next(error)
+  }
+})
+
+insightsRouter.get('/notifications', requirePermissions('notifications.manage'), async (_request, response, next) => {
+  try {
+    const data = await Notification.find().sort({ createdAt: -1, _id: -1 }).limit(100)
+    response.json({ data })
+  } catch (error) {
+    next(error)
+  }
+})
+
+insightsRouter.post('/notifications', requirePermissions('notifications.manage'), async (request, response, next) => {
+  try {
+    const input = notificationSchema.parse(request.body)
+    const data = await Notification.create(input)
+    response.status(201).json({ data })
+  } catch (error) {
+    next(error)
+  }
+})
+
+insightsRouter.patch('/notifications/:id/read', requirePermissions('notifications.manage'), async (request, response, next) => {
+  try {
+    if (!isValidObjectId(request.params.id)) throw new HttpError(400, 'VALIDATION_ERROR', 'Invalid notification identifier.')
+    const data = await Notification.findByIdAndUpdate(request.params.id, { readAt: new Date() }, { new: true })
+    if (!data) throw new HttpError(404, 'NOT_FOUND', 'Notification not found.')
+    response.json({ data })
+  } catch (error) {
+    next(error)
+  }
+})

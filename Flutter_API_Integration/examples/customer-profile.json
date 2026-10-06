@@ -1,0 +1,12 @@
+{
+  "data": {
+    "_id": "64a000000000000000000010",
+    "displayName": "Example Customer",
+    "email": "example.customer@salon.local",
+    "phone": "9999999999",
+    "status": "active",
+    "notes": "Example customer record.",
+    "createdAt": "2026-10-01T10:00:00.000Z",
+    "updatedAt": "2026-10-01T10:00:00.000Z"
+  }
+}

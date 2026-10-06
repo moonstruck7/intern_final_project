@@ -203,6 +203,19 @@ application-level conflict checks are not a distributed-locking guarantee.
 
 Implementation decision — billing uses integer minor units; service prices are converted server-side and client totals are ignored. `POST /api/v1/billing/invoices` accepts an appointment or customer/service source, and payment records are internal only (`cash`, `card`, `upi`, `other`). Refunds, tax, discount, currency, and supplier/valuation rules are CONTRACT DECISIONS REQUIRED.
 
+Salon billing reads require `platform.manage`. `GET /api/v1/billing/invoices`
+returns the existing invoice list enriched only for staff presentation with its
+canonical customer display record, optional appointment summary, line-item
+service display record, and recorded payments. `GET
+/api/v1/billing/invoices/:id` returns the same representation for one valid
+invoice ID. These are read models over Invoice, Customer, Appointment, Service,
+and Payment; no invoice/payment copy is stored. `POST
+/api/v1/billing/invoices/:id/payments` remains the authority for payment
+validation, including the existing no-overpayment rule and the existing
+`paid` transition on exact settlement. Invalid IDs and request bodies return
+the standard `VALIDATION_ERROR` response. Flutter's customer-scoped
+`GET /api/v1/customer/me/invoices` contract is unchanged.
+
 `POST/GET /api/v1/inventory/products`, `POST /api/v1/inventory/products/:id/stock`, and `GET /api/v1/inventory/products/:id/transactions` are protected inventory APIs. Stock changes create audit records and cannot make stock negative. No service-to-product consumption rule is implemented.
 
 ## Customer accounts and booking
@@ -245,3 +258,23 @@ protected by `staff.manage`; customers receive no new administrative permission.
 Discovery supports UI selection only. `POST /api/v1/customer/me/appointments`
 remains the final authority and continues to derive ownership server-side and
 validate active service/staff, availability, service duration, and conflicts.
+
+### Salon-side customer CRM history
+
+Implementation decision — the requirements require staff-facing customer
+history but do not prescribe a history endpoint. `GET
+/api/v1/customers/:id/history` is therefore a narrow implementation-level
+read endpoint. It requires `customers.manage`, validates the canonical Customer
+identifier, and returns the Customer, an optional safe linked-account summary,
+that customer's canonical appointments, the referenced service/staff display
+records, and that customer's invoices with their recorded payments. It does not
+store copied history in the Customer model, does not create accounts, and does
+not grant customer users access to another customer's data. Existing Flutter
+customer-scoped routes are unchanged.
+
+The response is `{ data: { customer, account, appointments, services, staff,
+invoices } }`. Each invoice carries its own `payments` array, matching the
+existing customer invoice-history representation. Appointment records retain
+their canonical `serviceId` and `staffId`; the `services` and `staff` arrays
+provide only the display records required to render that history without
+per-record queries.

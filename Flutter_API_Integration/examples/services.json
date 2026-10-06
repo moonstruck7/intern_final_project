@@ -1,0 +1,14 @@
+{
+  "data": [
+    {
+      "_id": "64a000000000000000000020",
+      "name": "Example Haircut",
+      "categoryId": "64a000000000000000000021",
+      "price": 500,
+      "durationMinutes": 45,
+      "status": "active",
+      "createdAt": "2026-10-01T10:00:00.000Z",
+      "updatedAt": "2026-10-01T10:00:00.000Z"
+    }
+  ]
+}

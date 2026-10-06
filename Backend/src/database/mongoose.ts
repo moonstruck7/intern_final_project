@@ -34,15 +34,16 @@ export function getDatabaseStatus(): DatabaseStatus {
  * can start in a transparent degraded state while no business routes exist.
  */
 export async function connectDatabase(
-  uri: string | undefined = env.mongodbUri,
+  uri?: string,
   options: ConnectOptions = {},
 ): Promise<DatabaseStatus> {
-  if (!uri) return getDatabaseStatus()
+  const resolvedUri = arguments.length === 0 ? env.mongodbUri : uri
+  if (!resolvedUri) return getDatabaseStatus()
 
   connectionWasConfigured = true
 
   try {
-    await mongoose.connect(uri, options)
+    await mongoose.connect(resolvedUri, options)
   } catch {
     // Raw driver errors can include sensitive connection details. Keep those
     // details out of API responses and leave the status available to callers.
@@ -55,4 +56,5 @@ export async function disconnectDatabase(): Promise<void> {
   if (mongoose.connection.readyState !== mongoose.ConnectionStates.disconnected) {
     await mongoose.disconnect()
   }
+  connectionWasConfigured = false
 }

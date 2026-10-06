@@ -1,28 +1,125 @@
-import { ApiError } from '../../shared/api/ApiError'
-import type { InventoryArea } from './inventory.types'
+import { apiRequest } from '../../shared/api/client'
 
-export interface InventoryContractRequirement {
-  area: InventoryArea
-  missing: readonly string[]
+export type ProductStatus = 'active' | 'inactive'
+export type StockMovementType = 'stock_in' | 'stock_out' | 'adjustment'
+
+export interface ProductRecord {
+  _id: string
+  name: string
+  sku: string
+  sellingPriceMinor: number
+  currentStock: number
+  lowStockThreshold?: number
+  status: ProductStatus
+  createdAt?: string
+  updatedAt?: string
 }
 
-/**
- * Contract boundary only. The repository does not define inventory endpoints,
- * schemas, stock business rules, supplier behavior, or authorization IDs.
- */
-export const inventoryContract: readonly InventoryContractRequirement[] = [
-  { area: 'products', missing: ['product/item and category list/detail/create/update endpoints', 'item/category request and response schema', 'supplier relationship only if approved', 'field validation', 'search/filter/pagination semantics', 'authorization'] },
-  { area: 'stock', missing: ['current-stock endpoint/schema', 'stock-in and stock-out operations', 'stock adjustment support and validation', 'stock quantity and negative-stock rules', 'authorization'] },
-  { area: 'transactions', missing: ['stock-transaction endpoint/schema', 'movement types/statuses', 'approved relationships to staff, suppliers, appointments, invoices, customers or reasons', 'search/filter/pagination semantics'] },
-  { area: 'history', missing: ['inventory-history endpoint/schema', 'item/stock/transaction relationship data', 'history filtering/pagination and authorization'] },
-  { area: 'lowStock', missing: ['low-stock endpoint/schema', 'backend-owned threshold and identification rules', 'warning/notification behavior and authorization'] },
-]
-
-export function getInventoryContractRequirement(area: InventoryArea): InventoryContractRequirement {
-  return inventoryContract.find((requirement) => requirement.area === area)!
+export interface StockTransactionRecord {
+  _id: string
+  productId: string
+  type: StockMovementType
+  quantity: number
+  reason?: string
+  actorId?: string
+  createdAt: string
+  updatedAt?: string
 }
 
-/** Used by future inventory operations until the approved backend operation is mapped. */
-export function unsupportedInventoryOperation(area: InventoryArea): never {
-  throw new ApiError(`The inventory ${area} API is not configured. NEEDS API CONTRACT.`)
+export interface ProductFilters {
+  status?: ProductStatus
+  search?: string
+  lowStock?: 'true' | 'false'
+}
+
+export interface CreateProductInput {
+  name: string
+  sku: string
+  sellingPriceMinor: number
+  lowStockThreshold?: number
+  status?: ProductStatus
+}
+
+export interface UpdateProductInput {
+  name?: string
+  sku?: string
+  sellingPriceMinor?: number
+  lowStockThreshold?: number
+  status?: ProductStatus
+}
+
+export interface StockMovementInput {
+  type: StockMovementType
+  quantity: number
+  reason?: string
+}
+
+function queryString(values: Record<string, string | undefined>) {
+  const query = new URLSearchParams()
+  Object.entries(values).forEach(([key, value]) => {
+    if (value && value !== 'all' && value !== 'undefined' && value !== 'null' && value.trim() !== '') {
+      query.set(key, value.trim())
+    }
+  })
+  const result = query.toString()
+  return result ? `?${result}` : ''
+}
+
+export async function getProducts(accessToken: string, filters: ProductFilters = {}) {
+  return apiRequest<{ data: ProductRecord[] }>({
+    path: `/api/v1/inventory/products${queryString({ ...filters })}`,
+    method: 'GET',
+    token: accessToken,
+  })
+}
+
+export async function getProduct(accessToken: string, id: string) {
+  return apiRequest<{ data: ProductRecord }>({
+    path: `/api/v1/inventory/products/${encodeURIComponent(id)}`,
+    method: 'GET',
+    token: accessToken,
+  })
+}
+
+export async function createProduct(accessToken: string, input: CreateProductInput) {
+  return apiRequest<{ data: ProductRecord }>({
+    path: '/api/v1/inventory/products',
+    method: 'POST',
+    token: accessToken,
+    body: input,
+  })
+}
+
+export async function updateProduct(accessToken: string, id: string, input: UpdateProductInput) {
+  return apiRequest<{ data: ProductRecord }>({
+    path: `/api/v1/inventory/products/${encodeURIComponent(id)}`,
+    method: 'PATCH',
+    token: accessToken,
+    body: input,
+  })
+}
+
+export async function recordStockMovement(accessToken: string, productId: string, input: StockMovementInput) {
+  return apiRequest<{ data: StockTransactionRecord; currentStock: number }>({
+    path: `/api/v1/inventory/products/${encodeURIComponent(productId)}/stock`,
+    method: 'POST',
+    token: accessToken,
+    body: input,
+  })
+}
+
+export async function getProductTransactions(accessToken: string, productId: string) {
+  return apiRequest<{ data: StockTransactionRecord[] }>({
+    path: `/api/v1/inventory/products/${encodeURIComponent(productId)}/transactions`,
+    method: 'GET',
+    token: accessToken,
+  })
+}
+
+export async function getAllTransactions(accessToken: string) {
+  return apiRequest<{ data: StockTransactionRecord[] }>({
+    path: '/api/v1/inventory/transactions',
+    method: 'GET',
+    token: accessToken,
+  })
 }

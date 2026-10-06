@@ -1,16 +1,14 @@
 import { useState, type FormEvent } from 'react'
-import { Navigate, useLocation, useNavigate } from 'react-router-dom'
+import { Navigate, useNavigate } from 'react-router-dom'
 import { useAuth } from './AuthProvider'
 import { getLoginErrorMessage, login as loginRequest } from './authApi'
 
 export function LoginPage() {
   const { status, login, startDevelopmentSession, lastSignOutReason } = useAuth()
   const navigate = useNavigate()
-  const location = useLocation()
-  const redirectTarget = (location.state as { from?: { pathname?: string } })?.from?.pathname || '/dashboard'
   const [message, setMessage] = useState<string>()
   const [submitting, setSubmitting] = useState(false)
-  if (status === 'authenticated') return <Navigate to={redirectTarget} replace />
+  if (status === 'authenticated') return <Navigate to="/dashboard" replace />
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -22,15 +20,22 @@ export function LoginPage() {
     setSubmitting(true); setMessage(undefined)
     try {
       login(await loginRequest({ loginIdentifier: identifier, password }))
-      navigate(redirectTarget, { replace: true })
+      navigate('/dashboard', { replace: true })
     } catch (error) {
       setMessage(getLoginErrorMessage(error))
     } finally { setSubmitting(false) }
   }
 
-  return <main className="auth-page"><section className="auth-card">
-    <p className="eyebrow">Salon SaaS Platform</p><h1>Sign in to the staff portal</h1>
-    <p className="muted">Use a locally provisioned staff, manager, or owner account.</p>
+  return <main className="auth-page"><div className="auth-shell">
+    <aside className="auth-intro" aria-hidden="true">
+      <span className="auth-mark">S</span>
+      <p className="eyebrow">Salon SaaS</p>
+      <h2>One calm place for daily salon operations.</h2>
+      <p>Appointments, guests, services, and salon activity—ready when your shift starts.</p>
+    </aside>
+    <section className="auth-card">
+    <p className="eyebrow">Staff portal</p><h1>Welcome back</h1>
+    <p className="muted">Sign in to continue to your salon workspace.</p>
     {lastSignOutReason === 'expired' && <p className="form-error" role="alert">Your session has ended. Please sign in again.</p>}
     <form onSubmit={onSubmit} noValidate>
       <label htmlFor="identifier">Account identifier<input id="identifier" name="identifier" autoComplete="username" disabled={submitting} aria-invalid={Boolean(message)} /></label>
@@ -39,5 +44,6 @@ export function LoginPage() {
       <button className="button" disabled={submitting} type="submit">{submitting ? 'Signing in…' : 'Sign in'}</button>
     </form>
     {import.meta.env.VITE_ENABLE_DEV_SESSION === 'true' && <button className="button button-secondary" type="button" onClick={startDevelopmentSession}>Start local development session</button>}
-  </section></main>
+    </section>
+  </div></main>
 }

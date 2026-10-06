@@ -1,27 +1,29 @@
-import { ApiError } from '../../shared/api/ApiError'
-import type { StaffArea } from './staff.types'
+import { apiRequest } from '../../shared/api/client'
 
-export interface StaffContractRequirement {
-  area: StaffArea
-  missing: readonly string[]
-}
+export type ActiveStatus = 'active' | 'inactive'
+export type AttendanceStatus = 'present' | 'absent'
+export type LeaveStatus = 'pending' | 'approved' | 'rejected'
+export interface StaffRecord { _id: string; displayName: string; designation?: string; email?: string; phone?: string; status: ActiveStatus }
+export interface AvailabilityRecord { _id: string; staffId: string; date: string; startTime: string; endTime: string; status: ActiveStatus }
+export interface AttendanceRecord { _id: string; staffId: string; date: string; status: AttendanceStatus; checkIn?: string; checkOut?: string }
+export interface LeaveRecord { _id: string; staffId: string; startDate: string; endDate: string; status: LeaveStatus; reason?: string }
+export interface ListFilters { search?: string; status?: ActiveStatus; limit?: number }
+export interface ResourceList<T> { data: T[]; pagination: { page: number; limit: number; total: number } }
 
-/**
- * Contract boundary only. The repository has no approved staff endpoints,
- * schemas, role/designation values, or scheduling rules to map yet.
- */
-export const staffContract: readonly StaffContractRequirement[] = [
-  { area: 'staff', missing: ['list/create/update/detail endpoints', 'staff request and response schema', 'profile fields', 'business designation values', 'status values and transitions', 'search/filter/pagination semantics', 'staff-administration authorization'] },
-  { area: 'scheduling', missing: ['schedule and availability endpoints/schema', 'date/time and timezone representation', 'staff-service capability relationship', 'schedule validation and authorization'] },
-  { area: 'attendance', missing: ['attendance endpoint/schema', 'attendance statuses and clock rules', 'history/filter behavior and authorization'] },
-  { area: 'leave', missing: ['leave endpoint/schema', 'leave types, quotas, approval and cancellation rules', 'history/filter behavior and authorization'] },
-]
+function query(filters: ListFilters = {}) { const params = new URLSearchParams(); Object.entries(filters).forEach(([key, value]) => { if (value !== undefined && value !== null && value !== '' && value !== 'all' && value !== 'undefined' && value !== 'null') params.set(key, String(value).trim()) }); return params.size ? `?${params}` : '' }
+function list<T>(path: string, token: string, filters?: ListFilters) { return apiRequest<ResourceList<T>>({ path: `${path}${query(filters)}`, method: 'GET', token }) }
+function create<T>(path: string, token: string, body: unknown) { return apiRequest<{ data: T }>({ path, method: 'POST', token, body }) }
+function update<T>(path: string, token: string, id: string, body: unknown) { return apiRequest<{ data: T }>({ path: `${path}/${encodeURIComponent(id)}`, method: 'PATCH', token, body }) }
 
-export function getStaffContractRequirement(area: StaffArea): StaffContractRequirement {
-  return staffContract.find((requirement) => requirement.area === area)!
-}
-
-/** Used by future operations until each approved backend operation is mapped. */
-export function unsupportedStaffOperation(area: StaffArea): never {
-  throw new ApiError(`The staff ${area} API is not configured. NEEDS API CONTRACT.`)
-}
+export const getStaff = (token: string, filters?: ListFilters) => list<StaffRecord>('/api/v1/staff', token, filters)
+export const createStaff = (token: string, body: Omit<StaffRecord, '_id'>) => create<StaffRecord>('/api/v1/staff', token, body)
+export const updateStaff = (token: string, id: string, body: Partial<Omit<StaffRecord, '_id'>>) => update<StaffRecord>('/api/v1/staff', token, id, body)
+export const getAvailability = (token: string) => list<AvailabilityRecord>('/api/v1/staff/availability', token, { limit: 100 })
+export const createAvailability = (token: string, body: Omit<AvailabilityRecord, '_id'>) => create<AvailabilityRecord>('/api/v1/staff/availability', token, body)
+export const updateAvailability = (token: string, id: string, body: Partial<Omit<AvailabilityRecord, '_id'>>) => update<AvailabilityRecord>('/api/v1/staff/availability', token, id, body)
+export const getAttendance = (token: string) => list<AttendanceRecord>('/api/v1/attendance', token, { limit: 100 })
+export const createAttendance = (token: string, body: Omit<AttendanceRecord, '_id'>) => create<AttendanceRecord>('/api/v1/attendance', token, body)
+export const updateAttendance = (token: string, id: string, body: Partial<Omit<AttendanceRecord, '_id'>>) => update<AttendanceRecord>('/api/v1/attendance', token, id, body)
+export const getLeave = (token: string) => list<LeaveRecord>('/api/v1/leave', token, { limit: 100 })
+export const createLeave = (token: string, body: Omit<LeaveRecord, '_id'> & { status?: LeaveStatus }) => create<LeaveRecord>('/api/v1/leave', token, body)
+export const updateLeave = (token: string, id: string, body: Partial<Omit<LeaveRecord, '_id'>>) => update<LeaveRecord>('/api/v1/leave', token, id, body)

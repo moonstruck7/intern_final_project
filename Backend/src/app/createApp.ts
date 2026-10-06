@@ -13,6 +13,7 @@ import { inventoryRouter } from '../inventory/routes.js'
 import { insightsRouter } from '../insights/routes.js'
 import { customerSessionRouter } from '../routes/customerSession.js'
 import { customerDiscoveryRouter } from '../routes/customerDiscovery.js'
+import { customerHistoryRouter } from '../routes/customerHistory.js'
 import { Service } from '../domains/models.js'
 
 export function createApp() {
@@ -30,6 +31,7 @@ export function createApp() {
 
   app.use(env.apiPrefix, healthRouter)
   app.use(`${env.apiPrefix}/auth`, authRouter)
+  app.use(`${env.apiPrefix}/customers`, customerHistoryRouter)
   app.use(env.apiPrefix, domainRouter)
   app.use(`${env.apiPrefix}/appointments`, appointmentRouter)
   app.use(`${env.apiPrefix}/billing`, billingRouter)

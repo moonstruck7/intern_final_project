@@ -1,0 +1,18 @@
+{
+  "request": {
+    "loginIdentifier": "example@salon.local",
+    "password": "ExamplePassword123!"
+  },
+  "successResponse": {
+    "user": {
+      "id": "64a000000000000000000001",
+      "loginIdentifier": "example@salon.local",
+      "isActive": true,
+      "roles": ["customer"],
+      "permissions": []
+    },
+    "accessToken": "EXAMPLE_JWT_ACCESS_TOKEN",
+    "refreshToken": "EXAMPLE_REFRESH_TOKEN",
+    "refreshExpiresAt": "2026-11-04T10:00:00.000Z"
+  }
+}

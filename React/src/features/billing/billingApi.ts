@@ -1,27 +1,68 @@
-import { ApiError } from '../../shared/api/ApiError'
-import type { BillingArea } from './billing.types'
+import { apiRequest } from '../../shared/api/client'
+import type { AppointmentRecord } from '../appointments/appointmentApi'
+import type { CustomerRecord } from '../customers/customerApi'
+import type { ServiceOption } from '../appointments/appointmentApi'
 
-export interface BillingContractRequirement {
-  area: BillingArea
-  missing: readonly string[]
+export type InvoiceStatus = 'draft' | 'issued' | 'paid' | 'cancelled'
+export type PaymentMethod = 'cash' | 'card' | 'upi' | 'other'
+
+export interface InvoiceLineItem {
+  _id?: string
+  serviceId?: string
+  productId?: string
+  quantity: number
+  unitPriceMinor: number
+  totalMinor: number
+  service?: { _id: string; name: string } | null
 }
 
-/**
- * Contract boundary only. No approved billing endpoints, request schemas, or
- * business rules exist in the repository, so this layer deliberately makes no requests.
- */
-export const billingContract: readonly BillingContractRequirement[] = [
-  { area: 'pos', missing: ['appointment billing lookup endpoint/schema', 'invoice creation/preview operation', 'approved totals, tax, discount, membership and package rules', 'validation and authorization'] },
-  { area: 'invoices', missing: ['invoice list/detail/create/update endpoints', 'invoice and line-item response schema', 'invoice number and status lifecycle', 'document/download behavior', 'search/filter/pagination semantics'] },
-  { area: 'payments', missing: ['payment create/list/detail endpoints', 'payment method, transaction, status and partial-payment rules', 'refund/void behavior', 'validation and authorization'] },
-  { area: 'history', missing: ['customer/appointment billing-history endpoint/schema', 'invoice-payment relationship response', 'history filtering/pagination and authorization'] },
-]
-
-export function getBillingContractRequirement(area: BillingArea): BillingContractRequirement {
-  return billingContract.find((requirement) => requirement.area === area)!
+export interface PaymentRecord {
+  _id: string
+  invoiceId: string
+  amountMinor: number
+  method: PaymentMethod
+  status: 'recorded'
+  createdAt?: string
 }
 
-/** Used by future billing operations until the approved backend operation is mapped. */
-export function unsupportedBillingOperation(area: BillingArea): never {
-  throw new ApiError(`The billing ${area} API is not configured. NEEDS API CONTRACT.`)
+export interface InvoiceRecord {
+  _id: string
+  invoiceNumber: string
+  customerId: string
+  appointmentId?: string
+  lineItems: InvoiceLineItem[]
+  subtotalMinor: number
+  totalMinor: number
+  status: InvoiceStatus
+  createdAt?: string
+  customer?: { _id: string; displayName: string } | null
+  appointment?: Pick<AppointmentRecord, '_id' | 'customerId' | 'serviceId' | 'staffId' | 'date' | 'startTime' | 'endTime' | 'status'> | null
+  payments: PaymentRecord[]
+}
+
+export interface InvoiceSourceOptions { customers: CustomerRecord[]; services: ServiceOption[]; appointments: AppointmentRecord[] }
+
+export async function getInvoices(accessToken: string) {
+  return apiRequest<{ data: InvoiceRecord[] }>({ path: '/api/v1/billing/invoices', method: 'GET', token: accessToken })
+}
+
+export async function getInvoice(accessToken: string, id: string) {
+  return apiRequest<{ data: InvoiceRecord }>({ path: `/api/v1/billing/invoices/${encodeURIComponent(id)}`, method: 'GET', token: accessToken })
+}
+
+export async function getInvoiceSources(accessToken: string): Promise<InvoiceSourceOptions> {
+  const [customers, services, appointments] = await Promise.all([
+    apiRequest<{ data: CustomerRecord[] }>({ path: '/api/v1/customers?limit=100', method: 'GET', token: accessToken }),
+    apiRequest<{ data: ServiceOption[] }>({ path: '/api/v1/services?status=active&limit=100', method: 'GET', token: accessToken }),
+    apiRequest<{ data: AppointmentRecord[] }>({ path: '/api/v1/appointments?limit=100', method: 'GET', token: accessToken }),
+  ])
+  return { customers: customers.data, services: services.data, appointments: appointments.data }
+}
+
+export async function createInvoice(accessToken: string, input: { appointmentId: string } | { customerId: string; serviceIds: string[] }) {
+  return apiRequest<{ data: InvoiceRecord }>({ path: '/api/v1/billing/invoices', method: 'POST', token: accessToken, body: input })
+}
+
+export async function recordPayment(accessToken: string, invoiceId: string, input: { amountMinor: number; method: PaymentMethod }) {
+  return apiRequest<{ data: PaymentRecord }>({ path: `/api/v1/billing/invoices/${encodeURIComponent(invoiceId)}/payments`, method: 'POST', token: accessToken, body: input })
 }
