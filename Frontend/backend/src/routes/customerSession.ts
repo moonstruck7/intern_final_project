@@ -1,0 +1,29 @@
+import bcrypt from 'bcryptjs';
+import { Router } from 'express';
+import type { Request, Response, NextFunction } from 'express';
+import { isValidObjectId } from 'mongoose';
+import { requireAuthentication, requirePermissions } from '../middleware/auth.js';
+import { User } from '../auth/User.js';
+import { Customer } from '../domains/models.js';
+import { Appointment } from '../appointments/model.js';
+import { validateAppointment } from '../appointments/service.js';
+import { Notification } from '../insights/model.js';
+import { Invoice, Payment } from '../billing/model.js';
+import { HttpError } from '../shared/errors.js';
+import { z } from 'zod';
+async function customerId(request: Request) {
+  if (request.auth?.role !== 'customer') throw new HttpError(403, 'FORBIDDEN', 'Customer access is required.');
+  if (!isValidObjectId(request.auth?.userId)) throw new HttpError(403, 'FORBIDDEN', 'Customer identity is not linked.');
+  const user = await User.findById(request.auth?.userId);
+  if (!user?.customerId) throw new HttpError(403, 'FORBIDDEN', 'Customer identity is not linked.');
+  return String(user.customerId);
+}
+export const customerSessionRouter=Router();customerSessionRouter.use(requireAuthentication)
+const bookingSchema=z.object({serviceId:z.string().regex(/^[a-f\d]{24}$/i),staffId:z.string().regex(/^[a-f\d]{24}$/i),date:z.string().date(),startTime:z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/)})
+customerSessionRouter.post('/:id/account',requirePermissions('customers.manage'),async(r,s,n)=>{try{const x=z.object({loginIdentifier:z.string().trim().min(3).max(254),password:z.string().min(8).max(128)}).parse(r.body);const customer:any=await Customer.findById(r.params.id);if(!customer||customer.status!=='active')throw new HttpError(400,'VALIDATION_ERROR','Customer is unavailable.');if(await User.exists({customerId:customer._id}))throw new HttpError(400,'VALIDATION_ERROR','Customer account already exists.');const user=await User.create({loginIdentifier:x.loginIdentifier,passwordHash:await bcrypt.hash(x.password,12),roles:['customer'],customerId:customer._id});s.status(201).json({data:{id:String(user._id),loginIdentifier:user.loginIdentifier,roles:user.roles,customerId:String(customer._id)}})}catch(e){n(e)}})
+customerSessionRouter.get('/me/customer',async(r,s,n)=>{try{s.json({data:await Customer.findById(await customerId(r))})}catch(e){n(e)}})
+customerSessionRouter.get('/me/appointments',async(r,s,n)=>{try{s.json({data:await Appointment.find({customerId:await customerId(r)}).sort({date:-1,startTime:-1}).limit(100)})}catch(e){n(e)}})
+customerSessionRouter.post('/me/appointments',async(r,s,n)=>{try{const ownedCustomerId=await customerId(r);const parsed=bookingSchema.safeParse(r.body);if(!parsed.success)throw new HttpError(400,'VALIDATION_ERROR','Invalid request.');const input:any={...parsed.data,customerId:ownedCustomerId};const endTime=await validateAppointment(input);s.status(201).json({data:await Appointment.create({...input,endTime})})}catch(e){n(e)}})
+customerSessionRouter.get('/me/notifications',async(r,s,n)=>{try{s.json({data:await Notification.find({referenceType:'Customer',referenceId:await customerId(r)}).sort({_id:-1}).limit(100)})}catch(e){n(e)}})
+customerSessionRouter.patch('/me/notifications/:id/read',async(r,s,n)=>{try{const ownedCustomerId=await customerId(r);const notificationId=String(r.params.id);if(!/^[a-f\d]{24}$/i.test(notificationId))throw new HttpError(400,'VALIDATION_ERROR','Invalid notification identifier.');const d=await Notification.findOneAndUpdate({_id:notificationId,referenceType:'Customer',referenceId:ownedCustomerId},{readAt:new Date()},{new:true});if(!d)throw new HttpError(404,'NOT_FOUND','Notification not found.');s.json({data:d})}catch(e){n(e)}})
+customerSessionRouter.get('/me/invoices',async(r,s,n)=>{try{const invoices=await Invoice.find({customerId:await customerId(r)}).sort({_id:-1}).limit(100);const payments=await Payment.find({invoiceId:{$in:invoices.map((x:any)=>x._id)}});s.json({data:invoices.map((invoice:any)=>({...invoice.toObject(),payments:payments.filter((p:any)=>String(p.invoiceId)===String(invoice._id))}))})}catch(e){n(e)}})
