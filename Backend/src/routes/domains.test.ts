@@ -26,6 +26,11 @@ test('service and staff domain routes require authentication', async () => {
   assert.equal((await request('/attendance')).status, 401)
 })
 
+test('public catalog services route does not require authentication', async () => {
+  const response = await request('/catalog/services')
+  assert.notEqual(response.status, 401)
+})
+
 test('staff role cannot use service or staff management routes', async () => {
   const token = await createAccessToken({ userId: 'test-staff', role: 'staff' })
   assert.equal((await request('/services', 'GET', token)).status, 403)

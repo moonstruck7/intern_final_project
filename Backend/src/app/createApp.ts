@@ -31,6 +31,9 @@ export function createApp() {
 
   app.use(env.apiPrefix, healthRouter)
   app.use(`${env.apiPrefix}/auth`, authRouter)
+  app.get(`${env.apiPrefix}/catalog/services`, async (_request, response, next) => {
+    try { response.json({ data: await Service.find({ status: 'active' }).sort({ name: 1 }).limit(100) }) } catch (error) { next(error) }
+  })
   app.use(`${env.apiPrefix}/customers`, customerHistoryRouter)
   app.use(env.apiPrefix, domainRouter)
   app.use(`${env.apiPrefix}/appointments`, appointmentRouter)
@@ -39,9 +42,6 @@ export function createApp() {
   app.use(env.apiPrefix, insightsRouter)
   app.use(`${env.apiPrefix}/customer`, customerSessionRouter)
   app.use(`${env.apiPrefix}/customer`, customerDiscoveryRouter)
-  app.get(`${env.apiPrefix}/catalog/services`, async (_request, response, next) => {
-    try { response.json({ data: await Service.find({ status: 'active' }).sort({ name: 1 }).limit(100) }) } catch (error) { next(error) }
-  })
   app.use(env.apiPrefix, apiNotFound)
   app.use(errorHandler)
 
