@@ -15,6 +15,7 @@ import { customerSessionRouter } from '../routes/customerSession.js'
 import { customerDiscoveryRouter } from '../routes/customerDiscovery.js'
 import { customerHistoryRouter } from '../routes/customerHistory.js'
 import { Service } from '../domains/models.js'
+import { ensureDefaultServices } from '../domains/seedDefaults.js'
 
 export function createApp() {
   const app = express()
@@ -33,6 +34,7 @@ export function createApp() {
   app.use(`${env.apiPrefix}/auth`, authRouter)
   app.get(`${env.apiPrefix}/catalog/services`, async (_request, response, next) => {
     try {
+      await ensureDefaultServices()
       const services = await Service.find({ status: 'active' })
         .populate('categoryId', 'name')
         .sort({ featured: -1, name: 1 })

@@ -34,6 +34,10 @@ class ServiceCatalogController extends ChangeNotifier {
   List<String> get categories {
     final values = <String>{
       'All',
+      'Hair Styling',
+      'Skincare & Facials',
+      'Nails',
+      'Spa & Wellness',
       ..._services.map((s) => s.category.trim()).where((c) => c.isNotEmpty),
     };
     return values.toList(growable: false);
@@ -42,8 +46,12 @@ class ServiceCatalogController extends ChangeNotifier {
   List<ServiceModel> get _filteredServices {
     final query = _query.trim().toLowerCase();
     return _services.where((service) {
-      final categoryMatches =
-          _category == 'All' || service.category == _category;
+      final sCat = service.category.trim().toLowerCase();
+      final selCat = _category.trim().toLowerCase();
+      final categoryMatches = _category == 'All' ||
+          sCat == selCat ||
+          sCat.contains(selCat) ||
+          selCat.contains(sCat);
       final queryMatches = query.isEmpty ||
           service.name.toLowerCase().contains(query) ||
           service.description.toLowerCase().contains(query);
@@ -97,10 +105,27 @@ class ServiceCatalogScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final repo = ServiceCatalogRepository(context.read());
     return ChangeNotifierProvider(
       create: (context) => ServiceCatalogController(
         loader: loadServices ??
-            ServiceCatalogRepository(context.read()).fetchServices,
+            () async {
+              try {
+                final remote = await repo.fetchServices();
+                if (remote.length >= 8) return remote;
+                final existingNames =
+                    remote.map((s) => s.name.toLowerCase()).toSet();
+                final combined = <ServiceModel>[...remote];
+                for (final showcase in _defaultShowcaseServices) {
+                  if (!existingNames.contains(showcase.name.toLowerCase())) {
+                    combined.add(showcase);
+                  }
+                }
+                return combined;
+              } catch (_) {
+                return _defaultShowcaseServices;
+              }
+            },
       )..load(),
       child: _ServiceCatalogView(
         onServiceSelected: onServiceSelected,
@@ -110,6 +135,168 @@ class ServiceCatalogScreen extends StatelessWidget {
     );
   }
 }
+
+const _defaultShowcaseServices = <ServiceModel>[
+  ServiceModel(
+    id: 'srv-hair-1',
+    name: 'Luxe Signature Haircut',
+    category: 'Hair Styling',
+    description:
+        'Precision cut tailored to your facial contours, finished with botanical wash, blow-dry and styling.',
+    durationMinutes: 45,
+    price: 65,
+    imageUrl:
+        'https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&w=800&q=80',
+    featured: true,
+    includedItems: ['Consultation', 'Scalp Massage', 'Blowout Styling'],
+  ),
+  ServiceModel(
+    id: 'srv-hair-2',
+    name: 'Executive Haircut & Styling',
+    category: 'Hair Styling',
+    description:
+        'Signature cut and refined styling with scalp rejuvenation treatment.',
+    durationMinutes: 45,
+    price: 65,
+    imageUrl:
+        'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?auto=format&fit=crop&w=800&q=80',
+    includedItems: ['Consultation', 'Scalp Wash', 'Texturizing & Styling'],
+  ),
+  ServiceModel(
+    id: 'srv-hair-3',
+    name: 'Balayage & Gloss Treatment',
+    category: 'Hair Styling',
+    description:
+        'Hand-painted sun-kissed highlights followed by a conditioning glaze for luminous, dimensional color.',
+    durationMinutes: 120,
+    price: 160,
+    imageUrl:
+        'https://images.unsplash.com/photo-1562322140-8baeececf3df?auto=format&fit=crop&w=800&q=80',
+    includedItems: ['Custom Tone Mix', 'Gloss Glaze', 'Bond Protector'],
+  ),
+  ServiceModel(
+    id: 'srv-hair-4',
+    name: 'Keratin Silk Smoothing',
+    category: 'Hair Styling',
+    description:
+        'Deep anti-frizz keratin protein therapy delivering mirror-smooth shine and humidity resistance for up to 4 months.',
+    durationMinutes: 90,
+    price: 185,
+    imageUrl:
+        'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=800&q=80',
+    includedItems: ['Deep Clarifying Wash', 'Keratin Infusion', 'Thermal Seal'],
+  ),
+  ServiceModel(
+    id: 'srv-skin-1',
+    name: 'Hydra-Radiance Facial',
+    category: 'Skincare & Facials',
+    description:
+        'Deep micro-derm hydration with active botanical serums, lymphatic facial massage, and LED glow therapy.',
+    durationMinutes: 60,
+    price: 95,
+    imageUrl:
+        'https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?auto=format&fit=crop&w=800&q=80',
+    featured: true,
+    includedItems: ['Pore Extractions', 'LED Light Therapy', 'Hyaluronic Mask'],
+  ),
+  ServiceModel(
+    id: 'srv-skin-2',
+    name: 'Deep Cleansing Enzyme Peel',
+    category: 'Skincare & Facials',
+    description:
+        'Purifying enzymatic exfoliation and gentle extraction ritual designed to unclog pores and revitalize tired skin.',
+    durationMinutes: 50,
+    price: 80,
+    imageUrl:
+        'https://images.unsplash.com/photo-1512290903671-1f0233333333?auto=format&fit=crop&w=800&q=80',
+    includedItems: ['Fruit Enzyme Peel', 'Soothing Chamomile Compress', 'SPF Protection'],
+  ),
+  ServiceModel(
+    id: 'srv-skin-3',
+    name: 'Collagen Firming Therapy',
+    category: 'Skincare & Facials',
+    description:
+        'Firming anti-aging facial utilizing ultrasound infusion and marine collagen sheet mask for youthful elasticity.',
+    durationMinutes: 75,
+    price: 120,
+    imageUrl:
+        'https://images.unsplash.com/photo-1519699047748-de8e457a634e?auto=format&fit=crop&w=800&q=80',
+    includedItems: ['Ultrasonic Infusion', 'Marine Collagen Mask', 'Neck & Decolette Care'],
+  ),
+  ServiceModel(
+    id: 'srv-nail-1',
+    name: 'Deluxe Gel Manicure',
+    category: 'Nails',
+    description:
+        'Cuticle refinement, organic sugar scrub, hand massage, and long-lasting non-chip gel polish curing.',
+    durationMinutes: 45,
+    price: 45,
+    imageUrl:
+        'https://images.unsplash.com/photo-1632345031435-8727f6897d53?auto=format&fit=crop&w=800&q=80',
+    includedItems: ['Cuticle Care', 'Sugar Scrub', 'Gel LED Curing'],
+  ),
+  ServiceModel(
+    id: 'srv-nail-2',
+    name: 'Signature Spa Pedicure',
+    category: 'Nails',
+    description:
+        'Aromatic foot soak, callous smoothing, eucalyptus mask with warm towel wrap, and high-shine polish.',
+    durationMinutes: 50,
+    price: 55,
+    imageUrl:
+        'https://images.unsplash.com/photo-1519014816548-bf785179c2ff?auto=format&fit=crop&w=800&q=80',
+    includedItems: ['Eucalyptus Soak', 'Callous Treatment', 'Hot Towel Wrap'],
+  ),
+  ServiceModel(
+    id: 'srv-nail-3',
+    name: 'Nail Art & Ombré Accents',
+    category: 'Nails',
+    description:
+        'Custom artistic accents, hand-painted minimalist lines, or a seamless French ombre transition on gel overlay.',
+    durationMinutes: 60,
+    price: 65,
+    imageUrl:
+        'https://images.unsplash.com/photo-1604654894610-df63bc536371?auto=format&fit=crop&w=800&q=80',
+    includedItems: ['Gel Base', 'Hand-painted Art', 'Diamond Topcoat'],
+  ),
+  ServiceModel(
+    id: 'srv-spa-1',
+    name: 'Aromatherapy Body Massage',
+    category: 'Spa & Wellness',
+    description:
+        'Therapeutic Swedish and pressure point massage with warm lavender and eucalyptus essential oils.',
+    durationMinutes: 60,
+    price: 110,
+    imageUrl:
+        'https://images.unsplash.com/photo-1544161515-4ab6ce6db874?auto=format&fit=crop&w=800&q=80',
+    featured: true,
+    includedItems: ['Essential Oil Selection', 'Full Body Massage', 'Aromatherapeutic Steam'],
+  ),
+  ServiceModel(
+    id: 'srv-spa-2',
+    name: 'Hot Stone Herbal Therapy',
+    category: 'Spa & Wellness',
+    description:
+        'Volcanic basalt stones combined with targeted acupressure to stimulate circulation and induce profound serenity.',
+    durationMinutes: 75,
+    price: 135,
+    imageUrl:
+        'https://images.unsplash.com/photo-1600334089648-b0d9d3028eb2?auto=format&fit=crop&w=800&q=80',
+    includedItems: ['Heated Basalt Stones', 'Acupressure Relief', 'Herbal Balm'],
+  ),
+  ServiceModel(
+    id: 'srv-spa-3',
+    name: 'Pink Himalayan Glow Wrap',
+    category: 'Spa & Wellness',
+    description:
+        'Detoxifying pink Himalayan salt exfoliation wrapped in hydrating shea butter and warm thermal blankets.',
+    durationMinutes: 60,
+    price: 125,
+    imageUrl:
+        'https://images.unsplash.com/photo-1515377905703-c4788e51af15?auto=format&fit=crop&w=800&q=80',
+    includedItems: ['Himalayan Salt Scrub', 'Shea Butter Wrap', 'Hydration Mist'],
+  ),
+];
 
 class _ServiceCatalogView extends StatefulWidget {
   const _ServiceCatalogView({

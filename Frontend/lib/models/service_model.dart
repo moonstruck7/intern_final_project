@@ -102,11 +102,24 @@ class ServiceModel {
       throw const FormatException('Invalid service catalog item.');
     }
 
-    final categoryStr = (json['category'] ??
+    var categoryStr = (json['category'] ??
             (json['categoryId'] is Map ? json['categoryId']['name'] : null))
         ?.toString()
         .trim() ??
         '';
+
+    if (categoryStr.isEmpty || categoryStr == 'Other' || categoryStr == 'General' || categoryStr == 'Hair & Styling') {
+      final lowerName = name.toLowerCase();
+      if (lowerName.contains('facial') || lowerName.contains('skin') || lowerName.contains('peel') || lowerName.contains('collagen')) {
+        categoryStr = 'Skincare & Facials';
+      } else if (lowerName.contains('massage') || lowerName.contains('spa') || lowerName.contains('wrap') || lowerName.contains('stone')) {
+        categoryStr = 'Spa & Wellness';
+      } else if (lowerName.contains('nail') || lowerName.contains('manicure') || lowerName.contains('pedicure')) {
+        categoryStr = 'Nails';
+      } else if (categoryStr.isEmpty) {
+        categoryStr = 'Hair Styling';
+      }
+    }
     final descriptionStr = json['description']?.toString().trim() ?? '';
     final imageUrlStr = json['imageUrl']?.toString().trim() ?? '';
     final featuredVal = json['featured'] == true;
