@@ -9,6 +9,9 @@ async function startServer() {
 
   if (databaseStatus === 'connected') {
     console.info('MongoDB connection established.')
+    import('./domains/seedDefaults.js').then((m) => m.ensureDefaultServices()).catch((err) => {
+      console.error('Failed to auto-seed defaults on startup:', err)
+    })
   } else if (databaseStatus === 'not_configured') {
     console.info('MongoDB is not configured. Starting the API without database readiness.')
   } else if (databaseStatus === 'unavailable') {
