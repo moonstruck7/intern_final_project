@@ -14,10 +14,12 @@ class ApiException implements Exception {
   }) {
     final message = switch (statusCode) {
       400 => serverMessage ?? 'Please check the information and try again.',
-      401 => 'Your session has expired. Please sign in again.',
-      403 => 'You do not have permission to perform this action.',
-      404 => 'The requested information could not be found.',
-      409 => 'This action conflicts with the current information.',
+      401 => (serverMessage == null || serverMessage == 'Internal detail')
+          ? 'Your session has expired. Please sign in again.'
+          : serverMessage,
+      403 => serverMessage ?? 'You do not have permission to perform this action.',
+      404 => serverMessage ?? 'The requested information could not be found.',
+      409 => serverMessage ?? 'This action conflicts with the current information.',
       >= 500 => 'The service is temporarily unavailable. Please try again.',
       _ => serverMessage ?? 'Unable to complete the request.',
     };

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import '../models/appointment_model.dart';
@@ -290,21 +291,23 @@ class _AppointmentCard extends StatelessWidget {
       AppointmentStatus.cancelled => const Color(0xFF9E2D2D),
     };
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border(left: BorderSide(color: accentColor, width: 4)),
-        boxShadow: [
-          BoxShadow(
-            color: accentColor.withValues(alpha: 0.08),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
+    return GestureDetector(
+      onTap: () => _showDetailsSheet(context),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border(left: BorderSide(color: accentColor, width: 4)),
+          boxShadow: [
+            BoxShadow(
+              color: accentColor.withValues(alpha: 0.08),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
         child: Column(
           children: [
             // ── Top row: status + date ──────────────────────────
@@ -426,7 +429,7 @@ class _AppointmentCard extends StatelessWidget {
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Text(
-                              'Price ${appointment.totalPrice?.toStringAsFixed(2) ?? ''}',
+                              'Price ${(appointment.totalPrice ?? appointment.service.price).toStringAsFixed(2)}',
                               style: Theme.of(context).textTheme.labelMedium
                                   ?.copyWith(
                                     color: SalonTheme.cocoa,
@@ -506,6 +509,16 @@ class _AppointmentCard extends StatelessWidget {
           ],
         ),
       ),
+    ),
+  );
+}
+
+  void _showDetailsSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _AppointmentDetailsModal(appointment: appointment),
     );
   }
 
@@ -586,6 +599,343 @@ class _CountdownChip extends StatelessWidget {
         style: Theme.of(context).textTheme.labelSmall
             ?.copyWith(color: Colors.white, fontWeight: FontWeight.w800),
       ),
+    );
+  }
+}
+
+// ── Appointment Details Modal ─────────────────────────────────────────────────
+class _AppointmentDetailsModal extends StatelessWidget {
+  const _AppointmentDetailsModal({required this.appointment});
+
+  final AppointmentModel appointment;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final priceValue = (appointment.totalPrice ?? appointment.service.price).toStringAsFixed(2);
+    final bookingId = appointment.id.length > 8
+        ? appointment.id.substring(appointment.id.length - 8).toUpperCase()
+        : appointment.id.toUpperCase();
+
+    return Container(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.sizeOf(context).height * 0.88,
+      ),
+      decoration: const BoxDecoration(
+        color: SalonTheme.cream,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Drag Handle
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: SalonTheme.cocoa.withValues(alpha: 0.25),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+
+              // Title Row
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Appointment Details',
+                          style: GoogleFonts.playfairDisplay(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w700,
+                            color: SalonTheme.deepChocolate,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Booking ID: #$bookingId',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: scheme.onSurfaceVariant,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  AppointmentStatusBadge(status: appointment.status),
+                ],
+              ),
+              const SizedBox(height: 18),
+
+              // Service Banner Card
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: SalonTheme.cocoa.withValues(alpha: 0.06),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (appointment.service.imageUrl.isNotEmpty)
+                      SizedBox(
+                        height: 130,
+                        width: double.infinity,
+                        child: Image.network(
+                          appointment.service.imageUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, _, _) => Container(
+                            color: SalonTheme.warmSurface,
+                            child: const Center(
+                              child: Icon(Icons.spa_rounded, size: 36, color: SalonTheme.cocoa),
+                            ),
+                          ),
+                        ),
+                      ),
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  appointment.service.name,
+                                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                    fontWeight: FontWeight.w800,
+                                    color: SalonTheme.deepChocolate,
+                                  ),
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  gradient: SalonTheme.cocoaGradient,
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Text(
+                                  'Price $priceValue',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (appointment.service.category.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              appointment.service.category,
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: SalonTheme.cocoa,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                          if (appointment.service.description.isNotEmpty) ...[
+                            const SizedBox(height: 8),
+                            Text(
+                              appointment.service.description,
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                color: scheme.onSurfaceVariant,
+                                height: 1.4,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Details List Card
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  border: const Border(
+                    left: BorderSide(color: SalonTheme.cocoa, width: 4),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: SalonTheme.cocoa.withValues(alpha: 0.06),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    _DetailRow(
+                      icon: Icons.calendar_month_outlined,
+                      label: 'Date',
+                      value: _formatFullDate(appointment.dateTime),
+                    ),
+                    const Divider(height: 20),
+                    _DetailRow(
+                      icon: Icons.schedule_outlined,
+                      label: 'Time & Duration',
+                      value: '${appointment.timeRange} (${appointment.durationMinutes} mins)',
+                    ),
+                    const Divider(height: 20),
+                    _DetailRow(
+                      icon: Icons.person_outline_rounded,
+                      label: 'Assigned Specialist',
+                      value: appointment.staffName,
+                    ),
+                    const Divider(height: 20),
+                    _DetailRow(
+                      icon: Icons.location_on_outlined,
+                      label: 'Location',
+                      value: appointment.location.isNotEmpty ? appointment.location : 'Luxe Salon & Spa',
+                    ),
+                    const Divider(height: 20),
+                    _DetailRow(
+                      icon: Icons.payments_outlined,
+                      label: 'Total Amount',
+                      value: 'Price $priceValue',
+                      boldValue: true,
+                      valueColor: SalonTheme.cocoa,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Policy / Instruction Note
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: SalonTheme.warmSurface,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFFEBDDD5), width: 1),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.info_outline_rounded, size: 20, color: SalonTheme.cocoa),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Please arrive 5 to 10 minutes prior to your booking. For rescheduling or cancellations, please reach out directly or visit the front desk.',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 22),
+
+              // Close / Done button
+              GestureDetector(
+                onTap: () => Navigator.of(context).pop(),
+                child: Container(
+                  height: 52,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    gradient: SalonTheme.cocoaGradient,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: SalonTheme.cocoa.withValues(alpha: 0.35),
+                        blurRadius: 10,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: Center(
+                    child: Text(
+                      'Close',
+                      style: GoogleFonts.nunito(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _formatFullDate(DateTime dt) {
+    const weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return '${weekdays[dt.weekday - 1]}, ${dt.day} ${months[dt.month - 1]} ${dt.year}';
+  }
+}
+
+class _DetailRow extends StatelessWidget {
+  const _DetailRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+    this.boldValue = false,
+    this.valueColor,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+  final bool boldValue;
+  final Color? valueColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: SalonTheme.cocoa),
+        const SizedBox(width: 12),
+        Text(
+          label,
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const Spacer(),
+        Flexible(
+          child: Text(
+            value,
+            textAlign: TextAlign.end,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              fontWeight: boldValue ? FontWeight.w800 : FontWeight.w600,
+              color: valueColor ?? SalonTheme.deepChocolate,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

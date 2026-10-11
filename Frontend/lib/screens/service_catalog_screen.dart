@@ -11,6 +11,7 @@ import '../theme/salon_theme.dart';
 import '../widgets/custom_shimmer_loader.dart';
 import '../widgets/error_banner_widget.dart';
 import 'booking_screen.dart';
+import 'customer_notifications_screen.dart';
 
 typedef ServiceLoader = Future<List<ServiceModel>> Function();
 
@@ -31,7 +32,10 @@ class ServiceCatalogController extends ChangeNotifier {
   String get category => _category;
 
   List<String> get categories {
-    final values = <String>{'All', ..._services.map((s) => s.category)};
+    final values = <String>{
+      'All',
+      ..._services.map((s) => s.category.trim()).where((c) => c.isNotEmpty),
+    };
     return values.toList(growable: false);
   }
 
@@ -82,10 +86,14 @@ class ServiceCatalogScreen extends StatelessWidget {
     super.key,
     this.loadServices,
     this.onServiceSelected,
+    this.onBookingCompleted,
+    this.onInboxSelected,
   });
 
   final ServiceLoader? loadServices;
   final ValueChanged<ServiceModel>? onServiceSelected;
+  final VoidCallback? onBookingCompleted;
+  final VoidCallback? onInboxSelected;
 
   @override
   Widget build(BuildContext context) {
@@ -94,15 +102,25 @@ class ServiceCatalogScreen extends StatelessWidget {
         loader: loadServices ??
             ServiceCatalogRepository(context.read()).fetchServices,
       )..load(),
-      child: _ServiceCatalogView(onServiceSelected: onServiceSelected),
+      child: _ServiceCatalogView(
+        onServiceSelected: onServiceSelected,
+        onBookingCompleted: onBookingCompleted,
+        onInboxSelected: onInboxSelected,
+      ),
     );
   }
 }
 
 class _ServiceCatalogView extends StatefulWidget {
-  const _ServiceCatalogView({this.onServiceSelected});
+  const _ServiceCatalogView({
+    this.onServiceSelected,
+    this.onBookingCompleted,
+    this.onInboxSelected,
+  });
 
   final ValueChanged<ServiceModel>? onServiceSelected;
+  final VoidCallback? onBookingCompleted;
+  final VoidCallback? onInboxSelected;
 
   @override
   State<_ServiceCatalogView> createState() => _ServiceCatalogViewState();
@@ -146,7 +164,17 @@ class _ServiceCatalogViewState extends State<_ServiceCatalogView> {
               actions: [
                 IconButton(
                   tooltip: 'Notifications',
-                  onPressed: () {},
+                  onPressed: () {
+                    if (widget.onInboxSelected != null) {
+                      widget.onInboxSelected!();
+                    } else {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const CustomerNotificationsScreen(),
+                        ),
+                      );
+                    }
+                  },
                   icon: const Icon(Icons.notifications_none_rounded),
                   color: SalonTheme.deepChocolate,
                 ),
@@ -209,7 +237,7 @@ class _ServiceCatalogViewState extends State<_ServiceCatalogView> {
             // ── Category chips ────────────────────────────────────
             SliverToBoxAdapter(
               child: SizedBox(
-                height: 46,
+                height: 48,
                 child: ListView.separated(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   scrollDirection: Axis.horizontal,
@@ -221,6 +249,11 @@ class _ServiceCatalogViewState extends State<_ServiceCatalogView> {
                     return AnimatedContainer(
                       duration: const Duration(milliseconds: 200),
                       child: FilterChip(
+                        avatar: Icon(
+                          _getCategoryIcon(cat),
+                          size: 15,
+                          color: selected ? Colors.white : SalonTheme.cocoa,
+                        ),
                         label: Text(cat),
                         selected: selected,
                         onSelected: (_) => controller.setCategory(cat),
@@ -234,9 +267,14 @@ class _ServiceCatalogViewState extends State<_ServiceCatalogView> {
                                       : SalonTheme.deepChocolate,
                                   fontWeight: FontWeight.w700,
                                 ),
-                        side: BorderSide.none,
+                        side: BorderSide(
+                          color: selected
+                              ? SalonTheme.cocoa
+                              : const Color(0xFFEBDDD5),
+                          width: 1,
+                        ),
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 6),
+                            horizontal: 10, vertical: 6),
                       ),
                     );
                   },
@@ -297,16 +335,19 @@ class _ServiceCatalogViewState extends State<_ServiceCatalogView> {
     );
   }
 
-  void _openBooking(BuildContext context, ServiceModel service) {
+  Future<void> _openBooking(BuildContext context, ServiceModel service) async {
     if (widget.onServiceSelected != null) {
       widget.onServiceSelected!(service);
       return;
     }
-    Navigator.of(context).push(
+    final booked = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
         builder: (_) => BookingScreen(service: service),
       ),
     );
+    if (booked == true) {
+      widget.onBookingCompleted?.call();
+    }
   }
 }
 
@@ -416,12 +457,20 @@ class _FeaturedServiceCard extends StatelessWidget {
             children: [
               // Background image
               Image.network(
-                service.imageUrl,
+                service.effectiveImageUrl,
                 fit: BoxFit.cover,
                 errorBuilder: (_, _, _) => Container(
-                  color: SalonTheme.warmSurface,
-                  child: const Icon(Icons.spa_rounded,
-                      size: 60, color: SalonTheme.cocoa),
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Color(0xFF8C533C), Color(0xFF5D2E1F)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                  ),
+                  child: const Center(
+                    child: Icon(Icons.spa_rounded,
+                        size: 60, color: Color(0xFFF3D2B8)),
+                  ),
                 ),
               ),
               // Gradient overlay
@@ -436,33 +485,59 @@ class _FeaturedServiceCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Featured badge
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: SalonTheme.peach.withValues(alpha: 0.9),
-                        borderRadius: BorderRadius.circular(30),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.auto_awesome_rounded,
-                              size: 12, color: Colors.white),
-                          const SizedBox(width: 4),
-                          Text(
-                            'FEATURED',
-                            style: Theme.of(context)
-                                .textTheme
-                                .labelSmall
-                                ?.copyWith(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: 1,
-                                ),
+                    // Badges row
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: SalonTheme.peach.withValues(alpha: 0.9),
+                            borderRadius: BorderRadius.circular(30),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.auto_awesome_rounded,
+                                  size: 12, color: Colors.white),
+                              const SizedBox(width: 4),
+                              Text(
+                                'FEATURED',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .labelSmall
+                                    ?.copyWith(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: 1,
+                                    ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (service.category.isNotEmpty) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.45),
+                              borderRadius: BorderRadius.circular(30),
+                            ),
+                            child: Text(
+                              service.category,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .labelSmall
+                                  ?.copyWith(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                            ),
                           ),
                         ],
-                      ),
+                      ],
                     ),
                     const Spacer(),
                     // Service name
@@ -589,12 +664,17 @@ class _ServiceCard extends StatelessWidget {
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(15),
                       child: Image.network(
-                        service.imageUrl,
+                        service.effectiveImageUrl,
                         fit: BoxFit.cover,
                         errorBuilder: (_, _, _) => Container(
                           color: scheme.surfaceContainerHighest,
-                          child: const Icon(Icons.spa_rounded,
-                              color: SalonTheme.cocoa),
+                          child: Center(
+                            child: Icon(
+                              _getCategoryIcon(service.category),
+                              color: SalonTheme.cocoa,
+                              size: 32,
+                            ),
+                          ),
                         ),
                         loadingBuilder: (context, child, progress) =>
                             progress == null
@@ -703,4 +783,18 @@ class _ServiceCard extends StatelessWidget {
       ),
     );
   }
+}
+
+IconData _getCategoryIcon(String category) {
+  final lower = category.toLowerCase();
+  if (lower.contains('all')) return Icons.auto_awesome_rounded;
+  if (lower.contains('hair')) return Icons.content_cut_rounded;
+  if (lower.contains('skin') || lower.contains('facial')) {
+    return Icons.face_retouching_natural_rounded;
+  }
+  if (lower.contains('nail')) return Icons.brush_rounded;
+  if (lower.contains('spa') || lower.contains('mass') || lower.contains('body')) {
+    return Icons.spa_rounded;
+  }
+  return Icons.star_border_rounded;
 }

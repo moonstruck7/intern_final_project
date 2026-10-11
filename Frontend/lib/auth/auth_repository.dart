@@ -50,6 +50,60 @@ class AuthRepository {
     }
   }
 
+  Future<CustomerSession> register({
+    required String email,
+    required String password,
+    required String displayName,
+    String? phone,
+  }) async {
+    final response = await apiClient.post(
+      '/api/v1/auth/register',
+      body: {
+        'email': email.trim().toLowerCase(),
+        'password': password,
+        'displayName': displayName.trim(),
+        if (phone != null && phone.trim().isNotEmpty) 'phone': phone.trim(),
+      },
+    );
+    _session = _parseSession(response);
+    await sessionStore.write(_session!);
+    try {
+      return await _loadCustomerSession();
+    } on ApiException {
+      await sessionStore.clear();
+      _session = null;
+      rethrow;
+    }
+  }
+
+  Future<CustomerProfile> updateProfile({
+    String? displayName,
+    String? phone,
+    String? email,
+    String? address,
+  }) async {
+    final response = await authorized(
+      (token) => apiClient.request(
+        'PATCH',
+        '/api/v1/customer/me/customer',
+        accessToken: token,
+        body: {
+          if (displayName != null) 'displayName': displayName.trim(),
+          if (phone != null) 'phone': phone.trim(),
+          if (email != null) 'email': email.trim().toLowerCase(),
+          if (address != null) 'address': address.trim(),
+        },
+      ),
+    );
+    final data = response is Map ? response['data'] : null;
+    if (data is! Map) {
+      throw const ApiException(
+        message: 'The customer profile response is invalid.',
+      );
+    }
+    return CustomerProfile.fromJson(data.cast<String, dynamic>());
+  }
+
   Future<T> authorized<T>(
     Future<T> Function(String accessToken) operation,
   ) async {

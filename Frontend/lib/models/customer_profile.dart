@@ -4,6 +4,7 @@ class CustomerProfile {
     required this.displayName,
     this.email,
     this.phone,
+    this.address,
     required this.status,
   });
 
@@ -11,6 +12,7 @@ class CustomerProfile {
   final String displayName;
   final String? email;
   final String? phone;
+  final String? address;
   final String status;
 
   factory CustomerProfile.fromJson(Map<String, dynamic> json) {
@@ -19,6 +21,7 @@ class CustomerProfile {
       displayName: (json['displayName'] ?? '').toString(),
       email: json['email']?.toString(),
       phone: json['phone']?.toString(),
+      address: json['address']?.toString(),
       status: (json['status'] ?? '').toString(),
     );
   }

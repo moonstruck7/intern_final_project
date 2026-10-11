@@ -5,9 +5,11 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import 'api/api_client.dart';
+import 'api/api_exception.dart';
 import 'auth/auth_controller.dart';
 import 'auth/auth_repository.dart';
 import 'auth/session_store.dart';
+import 'models/customer_profile.dart';
 import 'screens/login_screen.dart';
 import 'screens/customer_invoices_screen.dart';
 import 'screens/customer_notifications_screen.dart';
@@ -15,9 +17,14 @@ import 'screens/service_catalog_screen.dart';
 import 'screens/my_appointments_screen.dart';
 import 'theme/salon_theme.dart';
 import 'widgets/loyalty_card_widget.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   runApp(const LuxeSalonApp());
 }
 
@@ -73,22 +80,59 @@ class SalonHomeShell extends StatefulWidget {
 
 class _SalonHomeShellState extends State<SalonHomeShell> {
   int _currentIndex = 0;
-
-  final List<Widget> _screens = const [
-    ServiceCatalogScreen(),
-    MyAppointmentsScreen(),
-    _InboxScreen(),
-    _ProfileScreen(),
-  ];
+  int _inboxRevision = 0;
+  int _bookingsRevision = 0;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(index: _currentIndex, children: _screens),
+      body: IndexedStack(
+        index: _currentIndex,
+        children: [
+          ServiceCatalogScreen(
+            onBookingCompleted: () {
+              setState(() {
+                _bookingsRevision++;
+                _inboxRevision++;
+                _currentIndex = 1;
+              });
+            },
+            onInboxSelected: () {
+              setState(() {
+                _inboxRevision++;
+                _currentIndex = 2;
+              });
+            },
+          ),
+          MyAppointmentsScreen(key: ValueKey(_bookingsRevision)),
+          CustomerNotificationsScreen(
+            key: ValueKey(_inboxRevision),
+            onNavigateToBookings: () {
+              setState(() {
+                _bookingsRevision++;
+                _currentIndex = 1;
+              });
+            },
+            onNavigateToProfile: () {
+              setState(() {
+                _currentIndex = 3;
+              });
+            },
+          ),
+          const _ProfileScreen(),
+        ],
+      ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
         onDestinationSelected: (index) {
-          setState(() => _currentIndex = index);
+          setState(() {
+            _currentIndex = index;
+            if (index == 1) {
+              _bookingsRevision++;
+            } else if (index == 2) {
+              _inboxRevision++;
+            }
+          });
         },
         destinations: const [
           NavigationDestination(
@@ -114,16 +158,6 @@ class _SalonHomeShellState extends State<SalonHomeShell> {
         ],
       ),
     );
-  }
-}
-
-// ── INBOX SCREEN ──────────────────────────────────────────────────────────────
-class _InboxScreen extends StatelessWidget {
-  const _InboxScreen();
-
-  @override
-  Widget build(BuildContext context) {
-    return const CustomerNotificationsScreen();
   }
 }
 
@@ -252,6 +286,34 @@ class _InboxTile extends StatelessWidget {
 class _ProfileScreen extends StatelessWidget {
   const _ProfileScreen();
 
+  void _openEditProfile(BuildContext context) {
+    final customer = context.read<AuthController>().customer;
+    if (customer == null) return;
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => _EditProfileSheet(customer: customer),
+    );
+  }
+
+  void _openEditAddress(BuildContext context) {
+    final customer = context.read<AuthController>().customer;
+    if (customer == null) return;
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => _EditAddressSheet(customer: customer),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final customer = context.watch<AuthController>().customer;
@@ -266,7 +328,7 @@ class _ProfileScreen extends StatelessWidget {
             actions: [
               IconButton(
                 tooltip: 'Edit profile',
-                onPressed: () {},
+                onPressed: () => _openEditProfile(context),
                 icon: const Icon(Icons.edit_outlined),
               ),
               const SizedBox(width: 8),
@@ -304,6 +366,7 @@ class _ProfileScreen extends StatelessWidget {
                       icon: Icons.person_outline_rounded,
                       iconColor: SalonTheme.cocoa,
                       title: 'Personal Information',
+                      onTap: () => _openEditProfile(context),
                     ),
                     _SettingsTile(
                       icon: Icons.credit_card_outlined,
@@ -319,6 +382,10 @@ class _ProfileScreen extends StatelessWidget {
                       icon: Icons.location_on_outlined,
                       iconColor: SalonTheme.roseDust,
                       title: 'Saved Addresses',
+                      subtitle: customer?.address?.isNotEmpty == true
+                          ? customer!.address!
+                          : 'Tap to add your address',
+                      onTap: () => _openEditAddress(context),
                     ),
                   ],
                 ),
@@ -524,6 +591,427 @@ class _ProfileHeader extends StatelessWidget {
   }
 }
 
+// ── EDIT PROFILE SHEET ─────────────────────────────────────────────────────────
+class _EditProfileSheet extends StatefulWidget {
+  const _EditProfileSheet({required this.customer});
+
+  final CustomerProfile customer;
+
+  @override
+  State<_EditProfileSheet> createState() => _EditProfileSheetState();
+}
+
+class _EditProfileSheetState extends State<_EditProfileSheet> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _nameController;
+  late final TextEditingController _emailController;
+  late final TextEditingController _phoneController;
+  late final TextEditingController _addressController;
+  bool _isSaving = false;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(text: widget.customer.displayName);
+    _emailController = TextEditingController(text: widget.customer.email ?? '');
+    _phoneController = TextEditingController(text: widget.customer.phone ?? '');
+    _addressController =
+        TextEditingController(text: widget.customer.address ?? '');
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    _phoneController.dispose();
+    _addressController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() {
+      _isSaving = true;
+      _errorMessage = null;
+    });
+
+    try {
+      await context.read<AuthController>().updateProfile(
+        displayName: _nameController.text.trim(),
+        email: _emailController.text.trim(),
+        phone: _phoneController.text.trim().isNotEmpty
+            ? _phoneController.text.trim()
+            : null,
+        address: _addressController.text.trim().isNotEmpty
+            ? _addressController.text.trim()
+            : null,
+      );
+      if (!mounted) return;
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Profile updated successfully!'),
+          backgroundColor: SalonTheme.cocoa,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } on ApiException catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = e.message;
+          _isSaving = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Unable to update profile. Please try again.';
+          _isSaving = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 24,
+        right: 24,
+        top: 16,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+      ),
+      child: Form(
+        key: _formKey,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 18),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Edit Profile',
+                    style: GoogleFonts.playfairDisplay(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                      color: SalonTheme.deepChocolate,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded),
+                    onPressed: _isSaving ? null : () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Update your personal information below.',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 20),
+              if (_errorMessage != null) ...[
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.errorContainer,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    _errorMessage!,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onErrorContainer,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
+              TextFormField(
+                controller: _nameController,
+                textCapitalization: TextCapitalization.words,
+                decoration: const InputDecoration(
+                  labelText: 'Full Name',
+                  prefixIcon: Icon(Icons.person_outline_rounded),
+                ),
+                validator: (v) =>
+                    v == null || v.trim().isEmpty ? 'Enter your name.' : null,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _emailController,
+                keyboardType: TextInputType.emailAddress,
+                decoration: const InputDecoration(
+                  labelText: 'Email Address',
+                  prefixIcon: Icon(Icons.email_outlined),
+                ),
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) return 'Enter your email.';
+                  if (!v.contains('@') || !v.contains('.')) {
+                    return 'Enter a valid email address.';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _phoneController,
+                keyboardType: TextInputType.phone,
+                decoration: const InputDecoration(
+                  labelText: 'Phone Number (optional)',
+                  prefixIcon: Icon(Icons.phone_outlined),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _addressController,
+                maxLines: 2,
+                textCapitalization: TextCapitalization.sentences,
+                decoration: const InputDecoration(
+                  labelText: 'Address (optional)',
+                  hintText: 'Enter your address, city, pincode',
+                  prefixIcon: Icon(Icons.location_on_outlined),
+                  alignLabelWithHint: true,
+                ),
+              ),
+              const SizedBox(height: 24),
+              FilledButton(
+                onPressed: _isSaving ? null : _save,
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                child: _isSaving
+                    ? const SizedBox.square(
+                        dimension: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Text(
+                        'Save Changes',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── EDIT ADDRESS SHEET ────────────────────────────────────────────────────────
+class _EditAddressSheet extends StatefulWidget {
+  const _EditAddressSheet({required this.customer});
+
+  final CustomerProfile customer;
+
+  @override
+  State<_EditAddressSheet> createState() => _EditAddressSheetState();
+}
+
+class _EditAddressSheetState extends State<_EditAddressSheet> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _addressController;
+  bool _isSaving = false;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _addressController =
+        TextEditingController(text: widget.customer.address ?? '');
+  }
+
+  @override
+  void dispose() {
+    _addressController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() {
+      _isSaving = true;
+      _errorMessage = null;
+    });
+
+    try {
+      await context.read<AuthController>().updateProfile(
+        displayName: widget.customer.displayName,
+        email: widget.customer.email,
+        phone: widget.customer.phone,
+        address: _addressController.text.trim(),
+      );
+      if (!mounted) return;
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Address saved successfully!'),
+          backgroundColor: SalonTheme.cocoa,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } on ApiException catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = e.message;
+          _isSaving = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Unable to save address. Please try again.';
+          _isSaving = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 24,
+        right: 24,
+        top: 16,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+      ),
+      child: Form(
+        key: _formKey,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 18),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Saved Address',
+                    style: GoogleFonts.playfairDisplay(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                      color: SalonTheme.deepChocolate,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded),
+                    onPressed: _isSaving ? null : () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Save your primary address for appointments and home visits.',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 20),
+              if (_errorMessage != null) ...[
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.errorContainer,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    _errorMessage!,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onErrorContainer,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
+              TextFormField(
+                controller: _addressController,
+                maxLines: 3,
+                textCapitalization: TextCapitalization.sentences,
+                decoration: InputDecoration(
+                  labelText: 'Street Address, City, State, Pincode',
+                  hintText: 'e.g. 102 Sunset Boulevard, Bandra West, Mumbai 400050',
+                  prefixIcon: const Padding(
+                    padding: EdgeInsets.only(bottom: 40),
+                    child: Icon(Icons.location_on_outlined),
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                validator: (v) =>
+                    v == null || v.trim().isEmpty ? 'Please enter an address.' : null,
+              ),
+              const SizedBox(height: 24),
+              FilledButton(
+                onPressed: _isSaving ? null : _save,
+                style: FilledButton.styleFrom(
+                  backgroundColor: SalonTheme.cocoa,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                child: _isSaving
+                    ? const SizedBox.square(
+                        dimension: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Text(
+                        'Save Address',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _SettingsSection extends StatelessWidget {
   const _SettingsSection({required this.title, required this.tiles});
 
@@ -583,12 +1071,14 @@ class _SettingsTile extends StatelessWidget {
     required this.icon,
     required this.iconColor,
     required this.title,
+    this.subtitle,
     this.onTap,
   }) : trailing = null;
 
   final IconData icon;
   final Color iconColor;
   final String title;
+  final String? subtitle;
   final Widget? trailing;
   final VoidCallback? onTap;
 
@@ -605,10 +1095,27 @@ class _SettingsTile extends StatelessWidget {
         ),
         child: Icon(icon, size: 20, color: iconColor),
       ),
-      title: Text(
-        title,
-        style: Theme.of(context).textTheme.bodyMedium
-            ?.copyWith(fontWeight: FontWeight.w700),
+      title: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: Theme.of(context).textTheme.bodyMedium
+                ?.copyWith(fontWeight: FontWeight.w700),
+          ),
+          if (subtitle != null && subtitle!.isNotEmpty) ...[
+            const SizedBox(height: 2),
+            Text(
+              subtitle!,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ],
       ),
       trailing:
           trailing ??

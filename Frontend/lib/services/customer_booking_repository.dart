@@ -12,9 +12,10 @@ class CustomerBookingRepository {
   final ApiClient apiClient;
   final AuthRepository authRepository;
 
-  Future<List<BookingStaff>> fetchStaff() async {
+  Future<List<BookingStaff>> fetchStaff({String? serviceId}) async {
+    final query = serviceId != null ? '?serviceId=$serviceId' : '';
     final response = await authRepository.authorized(
-      (token) => apiClient.get('/api/v1/customer/staff', accessToken: token),
+      (token) => apiClient.get('/api/v1/customer/staff$query', accessToken: token),
     );
     return _parseList(response, BookingStaff.fromJson, 'staff directory');
   }

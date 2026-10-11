@@ -5,6 +5,7 @@ import { HttpError } from '../shared/errors.js'
 import { permissionsForRole, type Role } from './roles.js'
 import { User } from './User.js'
 import { Customer } from '../domains/models.js'
+import { Notification } from '../insights/model.js'
 import { createAccessToken, createRefreshToken, hashRefreshToken } from './tokens.js'
 
 const credentialsSchema = z.object({
@@ -83,6 +84,17 @@ export async function register(input: unknown) {
   })
 
   const session = await issueSession(user)
+
+  try {
+    await Notification.create({
+      referenceType: 'Customer',
+      referenceId: customer._id,
+      recipientUserId: user._id,
+      title: 'Welcome to Luxe Salon!',
+      body: `Welcome, ${displayName}! Explore our luxury salon treatments and book your first appointment directly from the app.`,
+    })
+  } catch (_) {}
+
   return { user: safeUser(user), ...session }
 }
 

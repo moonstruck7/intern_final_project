@@ -3,11 +3,13 @@ class BookingStaff {
     required this.id,
     required this.displayName,
     this.designation,
+    this.bio,
   });
 
   final String id;
   final String displayName;
   final String? designation;
+  final String? bio;
 
   factory BookingStaff.fromJson(Map<String, dynamic> json) {
     final id = (json['_id'] ?? json['id'])?.toString().trim();
@@ -22,6 +24,7 @@ class BookingStaff {
       id: id,
       displayName: displayName,
       designation: json['designation']?.toString(),
+      bio: json['bio']?.toString(),
     );
   }
 }

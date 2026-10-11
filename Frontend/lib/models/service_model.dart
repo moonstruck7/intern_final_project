@@ -55,15 +55,33 @@ class ServiceModel {
     );
   }
 
+  String get effectiveImageUrl {
+    if (imageUrl.trim().isNotEmpty) return imageUrl.trim();
+    final lower = category.toLowerCase();
+    if (lower.contains('hair')) {
+      return 'https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&w=800&q=80';
+    }
+    if (lower.contains('skin') || lower.contains('facial')) {
+      return 'https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?auto=format&fit=crop&w=800&q=80';
+    }
+    if (lower.contains('nail')) {
+      return 'https://images.unsplash.com/photo-1632345031435-8727f6897d53?auto=format&fit=crop&w=800&q=80';
+    }
+    if (lower.contains('spa') || lower.contains('mass') || lower.contains('body')) {
+      return 'https://images.unsplash.com/photo-1544161515-4ab6ce6db874?auto=format&fit=crop&w=800&q=80';
+    }
+    return 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=800&q=80';
+  }
+
   /// Parses the canonical `/api/v1/catalog/services` representation.
-  ///
-  /// Required backend fields are validated rather than replaced with display
-  /// defaults. Presentation-only fields are intentionally left empty because
-  /// the backend does not currently provide them.
   factory ServiceModel.fromCatalogJson(Map<String, dynamic> json) {
     final id = (json['_id'] ?? json['id'])?.toString().trim();
     final name = json['name']?.toString().trim();
-    final categoryId = json['categoryId']?.toString().trim();
+    final categoryId = (json['categoryId'] is Map
+            ? json['categoryId']['_id']
+            : json['categoryId'])
+        ?.toString()
+        .trim();
     final price = json['price'];
     final duration = json['durationMinutes'];
     final status = json['status']?.toString();
@@ -84,16 +102,31 @@ class ServiceModel {
       throw const FormatException('Invalid service catalog item.');
     }
 
+    final categoryStr = (json['category'] ??
+            (json['categoryId'] is Map ? json['categoryId']['name'] : null))
+        ?.toString()
+        .trim() ??
+        '';
+    final descriptionStr = json['description']?.toString().trim() ?? '';
+    final imageUrlStr = json['imageUrl']?.toString().trim() ?? '';
+    final featuredVal = json['featured'] == true;
+    final includedItemsVal = (json['includedItems'] as List<dynamic>?)
+            ?.map((item) => item.toString())
+            .toList(growable: false) ??
+        const <String>[];
+
     return ServiceModel(
       id: id,
       name: name,
-      category: '',
+      category: categoryStr,
       categoryId: categoryId,
-      description: '',
+      description: descriptionStr,
       durationMinutes: duration.toInt(),
       price: price.toDouble(),
-      imageUrl: '',
+      imageUrl: imageUrlStr,
       status: status!,
+      featured: featuredVal,
+      includedItems: includedItemsVal,
     );
   }
 

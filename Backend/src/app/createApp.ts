@@ -32,7 +32,40 @@ export function createApp() {
   app.use(env.apiPrefix, healthRouter)
   app.use(`${env.apiPrefix}/auth`, authRouter)
   app.get(`${env.apiPrefix}/catalog/services`, async (_request, response, next) => {
-    try { response.json({ data: await Service.find({ status: 'active' }).sort({ name: 1 }).limit(100) }) } catch (error) { next(error) }
+    try {
+      const services = await Service.find({ status: 'active' })
+        .populate('categoryId', 'name')
+        .sort({ featured: -1, name: 1 })
+        .limit(100)
+
+      const formatted = services.map((s: any) => {
+        const catName = s.categoryId && typeof s.categoryId === 'object' && 'name' in s.categoryId
+          ? s.categoryId.name
+          : ''
+        const catId = s.categoryId && typeof s.categoryId === 'object' && '_id' in s.categoryId
+          ? String(s.categoryId._id)
+          : String(s.categoryId || '')
+
+        return {
+          _id: s._id,
+          id: s._id,
+          name: s.name,
+          categoryId: catId,
+          category: catName,
+          price: s.price,
+          durationMinutes: s.durationMinutes,
+          description: s.description || '',
+          imageUrl: s.imageUrl || '',
+          featured: Boolean(s.featured),
+          includedItems: s.includedItems || [],
+          status: s.status,
+          createdAt: s.createdAt,
+          updatedAt: s.updatedAt,
+        }
+      })
+
+      response.json({ data: formatted })
+    } catch (error) { next(error) }
   })
   app.use(`${env.apiPrefix}/customers`, customerHistoryRouter)
   app.use(env.apiPrefix, domainRouter)

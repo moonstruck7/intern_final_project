@@ -54,6 +54,57 @@ class AuthController extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> register({
+    required String email,
+    required String password,
+    required String displayName,
+    String? phone,
+  }) async {
+    _state = AuthState.loading;
+    _errorMessage = null;
+    notifyListeners();
+    try {
+      final session = await _repository.register(
+        email: email,
+        password: password,
+        displayName: displayName,
+        phone: phone,
+      );
+      _customer = session.customer;
+      _state = AuthState.authenticated;
+    } on ApiException catch (error) {
+      _state = AuthState.error;
+      _errorMessage = error.message;
+    } catch (_) {
+      _state = AuthState.error;
+      _errorMessage = 'Unable to create account. Please try again.';
+    }
+    notifyListeners();
+  }
+
+  void clearError() {
+    if (_errorMessage != null) {
+      _errorMessage = null;
+      notifyListeners();
+    }
+  }
+
+  Future<void> updateProfile({
+    String? displayName,
+    String? phone,
+    String? email,
+    String? address,
+  }) async {
+    final updated = await _repository.updateProfile(
+      displayName: displayName,
+      phone: phone,
+      email: email,
+      address: address,
+    );
+    _customer = updated;
+    notifyListeners();
+  }
+
   Future<void> logout() async {
     await _repository.logout();
     _customer = null;

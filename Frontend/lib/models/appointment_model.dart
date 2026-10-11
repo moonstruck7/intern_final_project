@@ -148,6 +148,7 @@ class AppointmentModel {
       staffImageUrl: '',
       status: AppointmentStatusX.fromValue(backendStatus),
       backendStatus: backendStatus,
+      totalPrice: (json['totalPrice'] as num?)?.toDouble() ?? service.price,
     );
   }
 

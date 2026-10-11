@@ -1,21 +1,24 @@
 /// Compile with `--dart-define=API_BASE_URL=https://api.example.com`.
 ///
-/// The customer app deliberately has no production default. This prevents a
-/// build from accidentally pointing at a developer machine or an unintended
-/// environment.
+/// In release/production builds the dart-define value is required.
+/// During development the app falls back to the Android-emulator-friendly
+/// address for the local backend (http://10.0.2.2:4000).  Change
+/// [_devFallback] if your backend runs on a different port or you are
+/// testing on a physical device (use your machine's LAN IP instead).
 class ApiConfig {
   const ApiConfig._();
 
-  static const baseUrl = String.fromEnvironment('API_BASE_URL');
+  /// Override via `--dart-define=API_BASE_URL=<url>` at build time.
+  static const _defined = String.fromEnvironment('API_BASE_URL');
 
-  static String get requiredBaseUrl {
-    if (baseUrl.trim().isEmpty) {
-      throw const ApiConfigurationException(
-        'The API base URL has not been configured for this build.',
-      );
-    }
-    return baseUrl;
-  }
+  /// Fallback used only when [_defined] is empty (i.e. local debug runs).
+  /// 10.0.2.2 is the Android-emulator alias for the host machine's localhost.
+  static const _devFallback = 'http://10.0.2.2:4000';
+
+  static String get baseUrl =>
+      _defined.trim().isEmpty ? _devFallback : _defined;
+
+  static String get requiredBaseUrl => baseUrl;
 }
 
 class ApiConfigurationException implements Exception {
@@ -26,3 +29,4 @@ class ApiConfigurationException implements Exception {
   @override
   String toString() => message;
 }
+

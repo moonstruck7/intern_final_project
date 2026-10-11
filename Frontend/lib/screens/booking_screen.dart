@@ -31,12 +31,14 @@ class SalonStaff {
     required this.name,
     required this.imageUrl,
     this.specialty = '',
+    this.bio = '',
   });
 
   final String id;
   final String name;
   final String imageUrl;
   final String specialty;
+  final String bio;
 }
 
 class BookingController extends ChangeNotifier {
@@ -72,11 +74,12 @@ class BookingController extends ChangeNotifier {
 
     try {
       staff = List.unmodifiable(
-        (await bookingRepository.fetchStaff()).map(
+        (await bookingRepository.fetchStaff(serviceId: service.id)).map(
           (person) => SalonStaff(
             id: person.id,
             name: person.displayName,
             specialty: person.designation ?? '',
+            bio: person.bio ?? '',
             imageUrl: '',
           ),
         ),
@@ -521,6 +524,7 @@ class _BookingView extends StatelessWidget {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Appointment confirmed successfully.')),
       );
+      Navigator.of(context).pop(true);
     }
   }
 }
@@ -766,7 +770,7 @@ class _StaffPicker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 120,
+      height: 155,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: controller.staff.length,
@@ -778,8 +782,8 @@ class _StaffPicker extends StatelessWidget {
             onTap: () => controller.selectStaff(person),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 180),
-              width: 88,
-              padding: const EdgeInsets.all(9),
+              width: 112,
+              padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
                 gradient: selected ? SalonTheme.cocoaGradient : null,
                 color: selected ? null : Colors.white,
@@ -814,12 +818,21 @@ class _StaffPicker extends StatelessWidget {
                       ),
                     ),
                     child: CircleAvatar(
-                      radius: 25,
-                      backgroundImage: NetworkImage(person.imageUrl),
-                      onBackgroundImageError: (_, _) {},
+                      radius: 26,
+                      backgroundImage: person.imageUrl.isNotEmpty
+                          ? NetworkImage(person.imageUrl)
+                          : null,
+                      onBackgroundImageError: person.imageUrl.isNotEmpty
+                          ? (_, _) {}
+                          : null,
                       backgroundColor: SalonTheme.warmSurface,
                       child: person.imageUrl.isEmpty
-                          ? const Icon(Icons.person_rounded)
+                          ? Icon(
+                              Icons.person_rounded,
+                              color: selected
+                                  ? Colors.white
+                                  : SalonTheme.cocoa,
+                            )
                           : null,
                     ),
                   ),
@@ -827,20 +840,38 @@ class _StaffPicker extends StatelessWidget {
                   Text(
                     person.name,
                     overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.labelMedium?.copyWith(
                       fontWeight: FontWeight.w800,
                       color: selected ? Colors.white : SalonTheme.deepChocolate,
                     ),
                   ),
                   if (person.specialty.isNotEmpty) ...[
-                    const SizedBox(height: 1),
+                    const SizedBox(height: 2),
                     Text(
                       person.specialty,
                       overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.labelSmall?.copyWith(
                         fontSize: 9.5,
                         color: selected
                             ? Colors.white70
+                            : Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                  if (person.bio.isNotEmpty) ...[
+                    const SizedBox(height: 3),
+                    Text(
+                      person.bio,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        fontSize: 8.5,
+                        height: 1.3,
+                        color: selected
+                            ? Colors.white60
                             : Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
