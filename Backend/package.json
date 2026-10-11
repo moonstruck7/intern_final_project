@@ -12,6 +12,9 @@
     "provision:user": "tsx src/scripts/provisionUser.ts"
   },
   "dependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/node": "^26.6.3",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
     "dotenv": "^18.0.4",
@@ -20,14 +23,11 @@
     "jose": "^6.2.12",
     "mongodb": "^7.7.0",
     "mongoose": "^9.3.3",
+    "typescript": "^7.0.2",
     "zod": "^4.6.5"
   },
   "devDependencies": {
-    "@types/cors": "^2.8.19",
-    "@types/express": "^5.0.6",
-    "@types/node": "^26.6.3",
     "oxlint": "^1.86.0",
-    "tsx": "^4.23.15",
-    "typescript": "^7.0.2"
+    "tsx": "^4.23.15"
   }
 }

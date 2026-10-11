@@ -10,7 +10,7 @@ class ApiClient {
   ApiClient({
     String? baseUrl,
     http.Client? httpClient,
-    this.timeout = const Duration(seconds: 15),
+    this.timeout = const Duration(seconds: 45),
   }) : _baseUrl = baseUrl ?? ApiConfig.baseUrl,
        _httpClient = httpClient ?? http.Client();
 

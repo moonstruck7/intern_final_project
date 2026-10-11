@@ -67,14 +67,14 @@ export function createApp() {
       response.json({ data: formatted })
     } catch (error) { next(error) }
   })
+  app.use(`${env.apiPrefix}/customer`, customerSessionRouter)
+  app.use(`${env.apiPrefix}/customer`, customerDiscoveryRouter)
   app.use(`${env.apiPrefix}/customers`, customerHistoryRouter)
   app.use(env.apiPrefix, domainRouter)
   app.use(`${env.apiPrefix}/appointments`, appointmentRouter)
   app.use(`${env.apiPrefix}/billing`, billingRouter)
   app.use(`${env.apiPrefix}/inventory`, inventoryRouter)
   app.use(env.apiPrefix, insightsRouter)
-  app.use(`${env.apiPrefix}/customer`, customerSessionRouter)
-  app.use(`${env.apiPrefix}/customer`, customerDiscoveryRouter)
   app.use(env.apiPrefix, apiNotFound)
   app.use(errorHandler)
 

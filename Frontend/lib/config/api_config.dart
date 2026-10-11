@@ -11,9 +11,9 @@ class ApiConfig {
   /// Override via `--dart-define=API_BASE_URL=<url>` at build time.
   static const _defined = String.fromEnvironment('API_BASE_URL');
 
-  /// Fallback used only when [_defined] is empty (i.e. local debug runs).
-  /// 10.0.2.2 is the Android-emulator alias for the host machine's localhost.
-  static const _devFallback = 'http://10.0.2.2:4000';
+  /// Fallback used when [_defined] is empty. Points to the live Render deployment
+  /// so standalone APK builds connect directly to the cloud backend.
+  static const _devFallback = 'https://intern-final-project-e499.onrender.com';
 
   static String get baseUrl =>
       _defined.trim().isEmpty ? _devFallback : _defined;
