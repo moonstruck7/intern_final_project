@@ -113,7 +113,14 @@ class _SalonHomeShellState extends State<SalonHomeShell> {
               });
             },
           ),
-          const _ProfileScreen(),
+          _ProfileScreen(
+            onInboxSelected: () {
+              setState(() {
+                _inboxRevision++;
+                _currentIndex = 2;
+              });
+            },
+          ),
         ],
       ),
       bottomNavigationBar: NavigationBar(
@@ -278,7 +285,9 @@ class _InboxTile extends StatelessWidget {
 
 // ── PROFILE SCREEN ────────────────────────────────────────────────────────────
 class _ProfileScreen extends StatelessWidget {
-  const _ProfileScreen();
+  const _ProfileScreen({this.onInboxSelected});
+
+  final VoidCallback? onInboxSelected;
 
   void _openEditProfile(BuildContext context) {
     final customer = context.read<AuthController>().customer;
@@ -388,13 +397,24 @@ class _ProfileScreen extends StatelessWidget {
 
                 _SettingsSection(
                   title: 'Preferences',
-                  tiles: const [
+                  tiles: [
                     _SettingsTile(
                       icon: Icons.notifications_none_rounded,
                       iconColor: SalonTheme.goldAccent,
                       title: 'Notifications',
+                      onTap: () {
+                        if (onInboxSelected != null) {
+                          onInboxSelected!();
+                        } else {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const CustomerNotificationsScreen(),
+                            ),
+                          );
+                        }
+                      },
                     ),
-                    _SettingsTile(
+                    const _SettingsTile(
                       icon: Icons.lock_outline_rounded,
                       iconColor: Color(0xFF5C6BC0),
                       title: 'Privacy & Security',
