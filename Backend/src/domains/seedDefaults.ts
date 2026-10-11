@@ -1,8 +1,4 @@
-import bcrypt from 'bcryptjs'
-import mongoose from 'mongoose'
-import { Service, ServiceCategory, Staff, Availability, Customer } from './models.js'
-import { Appointment } from '../appointments/model.js'
-import { User } from '../auth/User.js'
+import { Service, ServiceCategory, Staff, Availability } from './models.js'
 
 export const DEFAULT_SERVICES = [
   {
@@ -228,17 +224,6 @@ export const DEFAULT_SPECIALISTS = [
   },
 ]
 
-export const DEFAULT_CUSTOMERS = [
-  { displayName: 'Jane Doe', email: 'customer@example.com', phone: '+91 9876543210', notes: 'Prefers botanical products' },
-  { displayName: 'Emma Stone', email: 'emma@example.com', phone: '+91 9876543211', notes: 'Hydra-radiance regular' },
-  { displayName: 'Aarav Mehta', email: 'aarav.mehta@example.com', phone: '+91 9876543212', notes: 'Executive haircut regular' },
-  { displayName: 'Pooja Verma', email: 'pooja.verma@example.com', phone: '+91 9876543213', notes: 'Gel manicure enthusiast' },
-  { displayName: 'Ananya Iyer', email: 'ananya.iyer@example.com', phone: '+91 9876543214', notes: 'Balayage client' },
-  { displayName: 'Rohan Deshmukh', email: 'rohan.deshmukh@example.com', phone: '+91 9876543215', notes: 'Weekend spa guest' },
-  { displayName: 'Siddharth Roy', email: 'sid.roy@example.com', phone: '+91 9876543216', notes: 'Aromatherapy client' },
-  { displayName: 'Karan Singhania', email: 'karan.s@example.com', phone: '+91 9876543217', notes: 'Pedicure & massage guest' },
-]
-
 const TIME_SLOTS = [
   { start: '09:00', end: '09:30' },
   { start: '09:30', end: '10:00' },
@@ -268,16 +253,13 @@ function formatDate(date: Date): string {
   return `${y}-${m}-${d}`
 }
 
-function offsetDay(days: number): string {
-  const target = new Date()
-  target.setDate(target.getDate() + days)
-  return formatDate(target)
-}
-
 let _seedingPromise: Promise<void> | null = null
 
 export async function ensureDefaultServices(): Promise<void> {
-  if (mongoose.connection.readyState !== 1) return
+  const serviceCount = await Service.countDocuments({ status: 'active' })
+  const staffCount = await Staff.countDocuments({ status: 'active' })
+  if (serviceCount >= 12 && staffCount >= 8) return
+
   if (_seedingPromise) return _seedingPromise
 
   _seedingPromise = (async () => {
@@ -322,6 +304,7 @@ export async function ensureDefaultServices(): Promise<void> {
       const todayStr = formatDate(today)
 
       for (const spec of DEFAULT_SPECIALISTS) {
+        // Resolve matching service IDs
         const matchedIds: any[] = []
         for (const kw of spec.keywords) {
           for (const s of allServices) {
@@ -331,6 +314,7 @@ export async function ensureDefaultServices(): Promise<void> {
           }
         }
 
+        // Link all services if none specifically matched
         const serviceIds = matchedIds.length > 0 ? matchedIds : allServices.map((s) => s._id)
 
         const staffDoc: any = await Staff.findOneAndUpdate(
@@ -373,252 +357,8 @@ export async function ensureDefaultServices(): Promise<void> {
           await Availability.insertMany(slotsToInsert, { ordered: false })
         }
       }
-
-      // 5. Ensure sample customers
-      const customerMap = new Map<string, any>()
-      for (const cust of DEFAULT_CUSTOMERS) {
-        const doc: any = await Customer.findOneAndUpdate(
-          { email: cust.email },
-          {
-            displayName: cust.displayName,
-            email: cust.email,
-            phone: cust.phone,
-            notes: cust.notes,
-            status: 'active',
-          },
-          { upsert: true, new: true, setDefaultsOnInsert: true }
-        )
-        customerMap.set(cust.displayName, doc)
-      }
-
-      // 6. Ensure default staff and admin user accounts with consistent credentials
-      const userSpecs = [
-        { loginIdentifier: 'admin@salon.com', password: 'Password@123', roles: ['owner'], customerId: undefined },
-        { loginIdentifier: 'manager@salon.com', password: 'Password@123', roles: ['manager'], customerId: undefined },
-        { loginIdentifier: 'customer@example.com', password: 'Password@123', roles: ['customer'], customerId: customerMap.get('Jane Doe')?._id },
-        { loginIdentifier: 'emma@example.com', password: 'Password@123', roles: ['customer'], customerId: customerMap.get('Emma Stone')?._id },
-      ]
-
-      for (const spec of userSpecs) {
-        const passwordHash = await bcrypt.hash(spec.password, 12)
-        const update: any = {
-          loginIdentifier: spec.loginIdentifier,
-          passwordHash,
-          roles: spec.roles,
-          isActive: true,
-        }
-        if (spec.customerId) update.customerId = spec.customerId
-
-        await User.findOneAndUpdate(
-          { loginIdentifier: spec.loginIdentifier },
-          update,
-          { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
-        )
-      }
-
-      // 7. Ensure realistic appointments across services and specialists
-      const allStaff = await Staff.find({ status: 'active' }).lean()
-      const serviceByName = new Map(allServices.map((s) => [s.name, s]))
-      const staffByName = new Map(allStaff.map((st) => [st.displayName, st]))
-
-      const appointmentBlueprints = [
-        // Today - Queue & Live Activity
-        {
-          customer: 'Jane Doe',
-          service: 'Luxe Signature Haircut',
-          specialist: 'Aanya Sharma',
-          date: offsetDay(0),
-          startTime: '09:30',
-          endTime: '10:15',
-          status: 'completed',
-        },
-        {
-          customer: 'Emma Stone',
-          service: 'Hydra-Radiance Facial',
-          specialist: 'Kavya Nair',
-          date: offsetDay(0),
-          startTime: '10:30',
-          endTime: '11:30',
-          status: 'in_progress',
-        },
-        {
-          customer: 'Aarav Mehta',
-          service: 'Executive Haircut & Styling',
-          specialist: 'Vikram Malhotra',
-          date: offsetDay(0),
-          startTime: '11:30',
-          endTime: '12:15',
-          status: 'arrived',
-        },
-        {
-          customer: 'Pooja Verma',
-          service: 'Deluxe Gel Manicure',
-          specialist: 'Divya Reddy',
-          date: offsetDay(0),
-          startTime: '12:00',
-          endTime: '12:45',
-          status: 'scheduled',
-        },
-        {
-          customer: 'Ananya Iyer',
-          service: 'Balayage & Gloss Treatment',
-          specialist: 'Priya Mehta',
-          date: offsetDay(0),
-          startTime: '14:00',
-          endTime: '16:00',
-          status: 'scheduled',
-        },
-        {
-          customer: 'Rohan Deshmukh',
-          service: 'Hot Stone Herbal Therapy',
-          specialist: 'Arjun Das',
-          date: offsetDay(0),
-          startTime: '15:30',
-          endTime: '16:45',
-          status: 'scheduled',
-        },
-        {
-          customer: 'Siddharth Roy',
-          service: 'Aromatherapy Body Massage',
-          specialist: 'Pooja Singh',
-          date: offsetDay(0),
-          startTime: '17:00',
-          endTime: '18:00',
-          status: 'scheduled',
-        },
-
-        // Upcoming Days
-        {
-          customer: 'Emma Stone',
-          service: 'Keratin Silk Smoothing',
-          specialist: 'Ritu Gupta',
-          date: offsetDay(1),
-          startTime: '10:00',
-          endTime: '11:30',
-          status: 'scheduled',
-        },
-        {
-          customer: 'Jane Doe',
-          service: 'Collagen Firming Therapy',
-          specialist: 'Dr. Meera Sen',
-          date: offsetDay(1),
-          startTime: '11:00',
-          endTime: '12:15',
-          status: 'scheduled',
-        },
-        {
-          customer: 'Karan Singhania',
-          service: 'Signature Spa Pedicure',
-          specialist: 'Tanya Bose',
-          date: offsetDay(1),
-          startTime: '14:00',
-          endTime: '14:50',
-          status: 'scheduled',
-        },
-        {
-          customer: 'Aarav Mehta',
-          service: 'Executive Haircut & Styling',
-          specialist: 'Sneha Pillai',
-          date: offsetDay(2),
-          startTime: '11:00',
-          endTime: '11:45',
-          status: 'scheduled',
-        },
-        {
-          customer: 'Ananya Iyer',
-          service: 'Nail Art & Ombré Accents',
-          specialist: 'Divya Reddy',
-          date: offsetDay(2),
-          startTime: '13:30',
-          endTime: '14:30',
-          status: 'scheduled',
-        },
-        {
-          customer: 'Pooja Verma',
-          service: 'Pink Himalayan Glow Wrap',
-          specialist: 'Arjun Das',
-          date: offsetDay(3),
-          startTime: '10:00',
-          endTime: '11:00',
-          status: 'scheduled',
-        },
-        {
-          customer: 'Rohan Deshmukh',
-          service: 'Deep Cleansing Enzyme Peel',
-          specialist: 'Kavya Nair',
-          date: offsetDay(3),
-          startTime: '15:00',
-          endTime: '15:50',
-          status: 'scheduled',
-        },
-
-        // Past Days (Completed History)
-        {
-          customer: 'Jane Doe',
-          service: 'Luxe Signature Haircut',
-          specialist: 'Aanya Sharma',
-          date: offsetDay(-1),
-          startTime: '10:00',
-          endTime: '10:45',
-          status: 'completed',
-        },
-        {
-          customer: 'Emma Stone',
-          service: 'Aromatherapy Body Massage',
-          specialist: 'Pooja Singh',
-          date: offsetDay(-1),
-          startTime: '14:00',
-          endTime: '15:00',
-          status: 'completed',
-        },
-        {
-          customer: 'Siddharth Roy',
-          service: 'Deluxe Gel Manicure',
-          specialist: 'Divya Reddy',
-          date: offsetDay(-2),
-          startTime: '11:00',
-          endTime: '11:45',
-          status: 'completed',
-        },
-        {
-          customer: 'Ananya Iyer',
-          service: 'Balayage & Gloss Treatment',
-          specialist: 'Priya Mehta',
-          date: offsetDay(-3),
-          startTime: '13:00',
-          endTime: '15:00',
-          status: 'completed',
-        },
-      ]
-
-      for (const bp of appointmentBlueprints) {
-        const custDoc = customerMap.get(bp.customer)
-        const sDoc = serviceByName.get(bp.service)
-        const stDoc = staffByName.get(bp.specialist)
-
-        if (!custDoc || !sDoc || !stDoc) continue
-
-        await Appointment.findOneAndUpdate(
-          {
-            customerId: custDoc._id,
-            staffId: stDoc._id,
-            date: bp.date,
-            startTime: bp.startTime,
-          },
-          {
-            customerId: custDoc._id,
-            serviceId: sDoc._id,
-            staffId: stDoc._id,
-            date: bp.date,
-            startTime: bp.startTime,
-            endTime: bp.endTime,
-            status: bp.status,
-          },
-          { upsert: true, new: true, setDefaultsOnInsert: true }
-        )
-      }
     } catch (err) {
-      console.error('Failed to ensure default services, specialists, and appointments:', err)
+      console.error('Failed to ensure default services and specialists:', err)
     } finally {
       _seedingPromise = null
     }
