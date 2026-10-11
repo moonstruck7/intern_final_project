@@ -17,14 +17,8 @@ import 'screens/service_catalog_screen.dart';
 import 'screens/my_appointments_screen.dart';
 import 'theme/salon_theme.dart';
 import 'widgets/loyalty_card_widget.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'firebase_options.dart';
-
-Future<void> main() async {
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
   runApp(const LuxeSalonApp());
 }
 
